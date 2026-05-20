@@ -18,7 +18,7 @@ const App = () => {
   useEffect(() => {
     if (token) {
       // Set up socket connection for notifications and tasks
-      const socket = io("http://localhost:5000", {
+      const socket = io("https://project-management-fvc3.onrender.com", {
         auth: {
           token: token
         }

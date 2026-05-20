@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api"
+  baseURL: "https://project-management-fvc3.onrender.com/api"
 });
 
 // Note API convenience methods (optional, since thunks use direct calls)
