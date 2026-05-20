@@ -1,0 +1,129 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Existing CollabSphere animations preserved */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(1deg); }
+  66% { transform: translateY(-4px) rotate(-1deg); }
+}
+
+/* New MemberDashboard Animations */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes particles {
+  0%, 100% { transform: translateY(0px) scale(1); opacity: 0.7; }
+  50% { transform: translateY(-20px) scale(1.1); opacity: 1; }
+}
+
+@keyframes metric-count {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes card-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes liquid-fill {
+  0% { width: 0%; }
+  100% { width: var(--progress-width); }
+}
+
+@keyframes flip-card {
+  0% { transform: perspective(1000px) rotateY(0deg); }
+  50% { transform: perspective(1000px) rotateY(90deg); }
+  100% { transform: perspective(1000px) rotateY(0deg); }
+}
+
+@keyframes shimmer-button {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float-controls {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes chart-enter {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.flip-card-hover:hover .flip-card-front { transform: perspective(1000px) rotateY(-180deg); }
+.flip-card-hover:hover .flip-card-back { transform: perspective(1000px) rotateY(0deg); }
+.flip-card-front, .flip-card-back { backface-visibility: hidden; transition: transform 0.6s; transform-style: preserve-3d; }
+.flip-card-back { transform: perspective(1000px) rotateY(180deg); position: absolute; inset: 0; }
+
+.shimmer-btn { background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%); background-size: 200% 100%; animation: shimmer-button 3s linear infinite; }
+.float-controls { animation: float-controls 3s ease-in-out infinite; }
+.animate-chart-enter { animation: chart-enter 0.8s ease-out; }
+
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes calendar-pop {
+  0% { transform: scale(0.8) translateY(10px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* Utility Classes */
+.animate-gradient-shift { background-size: 400% 400%; animation: gradient-shift 15s ease infinite; }
+.animate-shimmer { position: relative; overflow: hidden; }
+.animate-shimmer::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transform: translateX(-100%); animation: shimmer 2s infinite; }
+.animate-particles { animation: particles 6s ease-in-out infinite; }
+.animate-metric-count { animation: metric-count 1s ease-out; }
+.animate-card-float { animation: card-float 3s ease-in-out infinite; }
+.animate-liquid-fill { animation: liquid-fill 1.5s ease-out forwards; }
+.animate-slide-in-left { animation: slide-in-left 0.5s ease-out; }
+.animate-calendar-pop { animation: calendar-pop 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+.delay-500 { animation-delay: 0.5s; }
+.delay-1000 { animation-delay: 1s; }
+
+/* Glassmorphism */
+.glass { backdrop-filter: blur(20px); background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.18); }
+.glass-dark { backdrop-filter: blur(20px); background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); }
+
+/* 3D Card */
+.perspective-\[1000px\] { perspective: 1000px; }
+.transform-style-3d { transform-style: preserve-3d; }
+.card-3d { transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.card-3d:hover { transform: translateY(-20px) rotateX(8deg) rotateY(8deg) scale(1.02); box-shadow: 0 35px 80px rgba(0,0,0,0.3); }
+.hover\:rotate-y-10:hover { transform: rotateY(10deg); }
+.hover\:rotate-x-5:hover { transform: rotateX(5deg); }
+.hover\:translate-z-10:hover { transform: translateZ(20px); }
+
+/* Particles Background */
+.particles-bg { position: relative; overflow: hidden; }
+.particles-bg::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: radial-gradient(circle at 20% 80%, rgba(120,119,198,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,119,198,0.3) 0%, transparent 50%), radial-gradient(circle at 40% 40%, rgba(120,219,255,0.3) 0%, transparent 50%); animation: particles 20s linear infinite; pointer-events: none; }
+
+/* Gradient Text */
+.gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+/* Existing utilities preserved */
+.animate-float { animation: float 4s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 25s linear infinite; }
+.custom-scroll::-webkit-scrollbar { width: 12px; }
+.custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 6px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: #888; border-radius: 6px; }
+.custom-scroll::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* glow-related utility removed */
+
+@media (max-width: 768px) {
+  .glass { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.4); }
+}
