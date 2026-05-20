@@ -785,6 +785,26 @@ const AdminDashboard = () => {
           </div>
         </header>
 
+        <nav className="border-b border-white/10 bg-slate-950/80 px-4 py-3 lg:hidden">
+          <div className="flex gap-3 overflow-x-auto pb-1 custom-scroll">
+            {sectionConfig.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setActiveSection(section.id)}
+                className={`flex shrink-0 items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
+                  activeSection === section.id
+                    ? 'border-cyan-300/40 bg-cyan-500/20 text-white'
+                    : 'border-white/10 bg-white/5 text-slate-300'
+                }`}
+              >
+                <i className={`fas ${section.icon}`}></i>
+                {section.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+
         {/* Main Content Area */}
         <main className="flex-1 p-4 md:p-8">
           {activeSection === 'overview' && (

@@ -452,25 +452,27 @@ const MemberDashboard = () => {
     }
   };
 
+  const memberSectionConfig = [
+    { id: 'projects', icon: 'fa-project-diagram', label: 'Projects', color: 'from-emerald-400 to-teal-500' },
+    { id: 'tasks', icon: 'fa-tasks', label: 'My Tasks', color: 'from-blue-400 to-indigo-500' },
+    { id: 'calendar', icon: 'fa-calendar-alt', label: 'Calendar', color: 'from-purple-400 to-pink-500' },
+    { id: 'reports', icon: 'fa-chart-line', label: 'Reports', color: 'from-orange-400 to-red-500' },
+    { id: 'chat', icon: 'fa-comments', label: 'Project Chat', color: 'from-teal-400 to-cyan-500' },
+    { id: 'sticky-notes', icon: 'fa-sticky-note', label: 'Sticky Notes', color: 'from-amber-400 to-yellow-500' }
+  ];
+
   return (
     <div className="relative flex min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 text-gray-800">
 
       {/* Sidebar Navigation */}
-      <aside className="min-h-screen w-64 shrink-0 border-r border-slate-700 bg-slate-900 text-white">
+      <aside className="hidden min-h-screen w-64 shrink-0 border-r border-slate-700 bg-slate-900 text-white lg:block">
 
         <div className="border-b border-slate-700 p-8">
           <h2 className="text-3xl font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-500 bg-clip-text text-transparent">ProManage</h2>
         </div>
         <nav className="mt-8">
           <ul className="space-y-1">
-            {[
-              { id: 'projects', icon: 'fa-project-diagram', label: 'Projects', color: 'from-emerald-400 to-teal-500' },
-              { id: 'tasks', icon: 'fa-tasks', label: 'My Tasks', color: 'from-blue-400 to-indigo-500' },
-              { id: 'calendar', icon: 'fa-calendar-alt', label: 'Calendar', color: 'from-purple-400 to-pink-500' },
-              { id: 'reports', icon: 'fa-chart-line', label: 'Reports', color: 'from-orange-400 to-red-500' },
-              { id: 'chat', icon: 'fa-comments', label: 'Project Chat', color: 'from-teal-400 to-cyan-500' },
-              { id: 'sticky-notes', icon: 'fa-sticky-note', label: 'Sticky Notes', color: 'from-amber-400 to-yellow-500' }
-            ].map(({ id, icon, label, color }) => (
+            {memberSectionConfig.map(({ id, icon, label, color }) => (
               <li key={id}>
                 <div 
                   className={`mx-4 flex cursor-pointer items-center rounded-r-2xl px-8 py-4 transition-colors duration-200 ${
@@ -494,7 +496,7 @@ const MemberDashboard = () => {
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col bg-blue-50">
         {/* Header/Navbar */}
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-6">
+        <header className="flex flex-col gap-4 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:py-6">
 
           <div className="flex items-center space-x-3">
             <div className="h-12 w-12 rounded-2xl border border-slate-200 bg-white p-1">
@@ -510,7 +512,7 @@ const MemberDashboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center justify-end gap-3 lg:space-x-4">
             <button
               onClick={() => {
                 setActiveSection('chat');
@@ -605,8 +607,26 @@ const MemberDashboard = () => {
           </div>
         </header>
 
+        <nav className="border-b border-slate-200 bg-white/90 px-4 py-3 lg:hidden">
+          <div className="flex gap-3 overflow-x-auto pb-1 custom-scroll">
+            {memberSectionConfig.map(({ id, icon, label, color }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveSection(id)}
+                className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all ${
+                  activeSection === id ? `bg-gradient-to-r ${color}` : 'bg-slate-800'
+                }`}
+              >
+                <i className={`fas ${icon}`}></i>
+                {label}
+              </button>
+            ))}
+          </div>
+        </nav>
+
         {/* Main Content Area */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 sm:p-6">
           {activeSection === 'projects' && (
             <div className="space-y-8">
               {/* Hero Banner */}

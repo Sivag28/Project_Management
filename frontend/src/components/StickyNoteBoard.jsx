@@ -95,7 +95,7 @@ const StickyNote = ({ note, onEdit, onDelete }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className={`group absolute cursor-grab overflow-hidden rounded-lg border border-black/20 p-3 shadow-lg transition-all duration-200 hover:scale-[1.02] active:cursor-grabbing active:scale-[0.98]
+      className={`sticky-note-card group absolute cursor-grab overflow-hidden rounded-lg border border-black/20 p-3 shadow-lg transition-all duration-200 hover:scale-[1.02] active:cursor-grabbing active:scale-[0.98]
         before:absolute before:-inset-1 before:rounded-lg before:bg-gradient-to-r before:from-black/5 before:to-transparent before:content-['']
         after:absolute after:right-0 after:top-0 after:h-4 after:w-4 after:-translate-x-1 after:-translate-y-1 after:rotate-45 after:rounded-bl after:bg-white/80 after:content-['']`}
       onDoubleClick={handleDoubleClick}
@@ -237,14 +237,14 @@ const StickyNoteBoard = ({ projectId }) => {
   }
 
   return (
-    <div className="relative min-h-[600px] overflow-hidden rounded-3xl border border-amber-300/60 bg-gradient-to-br from-amber-50/60 via-orange-50/60 to-yellow-100/60 p-8">
+    <div className="sticky-note-board relative min-h-[600px] overflow-hidden rounded-3xl border border-amber-300/60 bg-gradient-to-br from-amber-50/60 via-orange-50/60 to-yellow-100/60 p-8">
 
       <div
         ref={boardRef}
-        className="absolute inset-0 z-0 cursor-grab select-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRkZBQjgwIi8+CjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjIiIGZpbGw9IiNENjlEMUIiLz4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgdHJhbnNmb3JtPSJyb3RhdGUoNDUgMjAgMjApIiBmaWxsPSIjRDY5RDFCIi8+CjxjaXJjbGUgY3g9IjQ0IiBjeT0iNDQiIHI9IjEiIHRyYW5zZm9ybT0icm90YXRlKDQ1IDQ0IDQ0KSIgZmlsbD0iI0Q2OUQxQiIvPgo8L3N2Zz4K')] bg-repeat"
+        className="sticky-note-canvas absolute inset-0 z-0 cursor-grab select-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRkZBQjgwIi8+CjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjIiIGZpbGw9IiNENjlEMUIiLz4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgdHJhbnNmb3JtPSJyb3RhdGUoNDUgMjAgMjApIiBmaWxsPSIjRDY5RDFCIi8+CjxjaXJjbGUgY3g9IjQ0IiBjeT0iNDQiIHI9IjEiIHRyYW5zZm9ybT0icm90YXRlKDQ1IDQ0IDQ0KSIgZmlsbD0iI0Q2OUQxQiIvPgo8L3N2Zz4K')] bg-repeat"
       />
 
-      <div className="absolute inset-0 z-10">
+      <div className="sticky-note-list absolute inset-0 z-10">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -263,7 +263,7 @@ const StickyNoteBoard = ({ projectId }) => {
         </DndContext>
       </div>
 
-      <div className="absolute bottom-8 left-8 z-50 w-[360px] rounded-3xl border border-white/60 bg-white/95 p-6">
+      <div className="sticky-note-composer absolute bottom-8 left-8 z-50 w-[360px] rounded-3xl border border-white/60 bg-white/95 p-6">
 
         <div className="mb-4 border-b border-amber-100 pb-3">
           <h3 className="text-lg font-semibold tracking-tight text-amber-950">
@@ -320,7 +320,7 @@ const StickyNoteBoard = ({ projectId }) => {
       </div>
 
         {projects?.length > 0 && (
-          <div className="absolute top-8 right-8 z-40 rounded-2xl border border-white/50 bg-white/95 p-5">
+          <div className="sticky-project-picker absolute top-8 right-8 z-40 rounded-2xl border border-white/50 bg-white/95 p-5">
             <select
             value={effectiveProjectId}
             onChange={(e) => {
