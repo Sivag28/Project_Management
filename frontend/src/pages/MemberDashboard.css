@@ -2159,3 +2159,149 @@
   background: #4a8c5b;
 }
 .member-dashboard .member-notification-dot.is-read { background: #cbd5cc; }
+
+@media (max-width: 767px) {
+  .member-dashboard .member-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+    padding: 0.7rem 0.85rem;
+  }
+
+  .member-dashboard .member-content {
+    height: 100dvh;
+  }
+
+  .member-dashboard .member-header > div:first-child {
+    width: 100%;
+    gap: 0.65rem;
+  }
+
+  .member-dashboard .member-header > div:first-child > div:first-child {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 2.75rem;
+    border-radius: 0.8rem;
+  }
+
+  .member-dashboard .member-header > div:first-child > div:last-child {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    column-gap: 0.55rem;
+    row-gap: 0.15rem;
+  }
+
+  .member-dashboard .member-header h1 {
+    white-space: nowrap;
+    font-size: 0.98rem;
+    line-height: 1.25;
+  }
+
+  .member-dashboard .member-header .member-role {
+    margin-top: 0;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.65rem;
+  }
+
+  .member-dashboard .member-header > div:last-child {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .member-dashboard .member-header button.group {
+    width: 2.65rem;
+    height: 2.65rem;
+    flex: 0 0 2.65rem;
+    border-radius: 0.8rem;
+  }
+
+  .member-dashboard .member-header button.group > svg {
+    font-size: 1.15rem;
+  }
+
+  .member-dashboard .member-header button.group > span.absolute {
+    top: -0.25rem;
+    right: -0.25rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    border: 2px solid #173d2b;
+    background: #d9f0dc;
+    color: #245b36;
+    font-size: 0.62rem;
+  }
+
+  .member-dashboard .member-header > div:last-child > .relative:last-child {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .member-dashboard .member-header > div:last-child > .relative:last-child > div:first-child {
+    justify-content: flex-end;
+    gap: 0.45rem;
+  }
+
+  .member-dashboard .member-header > div:last-child > .relative:last-child > div:first-child > button:first-child {
+    min-width: 0;
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid rgba(215, 237, 218, 0.15);
+    border-radius: 0.7rem;
+    font-size: 0.78rem;
+  }
+
+  .member-dashboard .member-header button.member-logout-button {
+    min-height: 2.65rem;
+    flex: 0 0 auto;
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  .member-dashboard .member-mobile-nav {
+    padding: 0.6rem 0.7rem;
+  }
+
+  .member-dashboard .member-mobile-nav > div {
+    gap: 0.5rem;
+    padding-bottom: 0.15rem;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .member-dashboard .member-mobile-nav button {
+    min-height: 2.6rem;
+    gap: 0.45rem;
+    border-radius: 0.8rem;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 360px) {
+  .member-dashboard .member-header {
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+  }
+
+  .member-dashboard .member-header h1 {
+    font-size: 0.9rem;
+  }
+
+  .member-dashboard .member-header > div:last-child > .relative:last-child > div:first-child > button:first-child {
+    max-width: 7rem;
+  }
+
+  .member-dashboard .member-header button.member-logout-button {
+    padding-right: 0.55rem;
+    padding-left: 0.55rem;
+  }
+}
