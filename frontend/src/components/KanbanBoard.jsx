@@ -1,39 +1,20 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useDispatch } from "react-redux";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import {
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { updateTaskStatus } from "../redux/taskSlice";
+import { useState, useEffect, useMemo } from "react";
+import { LayoutGrid } from "lucide-react";
 
-const SortableTask = ({ task, getUserName }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: task._id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+const buildColumns = (items) => {
+  const result = { backlog: [], todo: [], inProgress: [], testing: [], completed: [] };
+  const statusToColumn = {
+    Backlog: "backlog",
+    "To Do": "todo",
+    "In Progress": "inProgress",
+    Testing: "testing",
+    Completed: "completed",
   };
+  items.forEach((task) => result[statusToColumn[task.status] || "backlog"].push(task));
+  return result;
+};
 
+const TaskCard = ({ task, getUserName }) => {
   const getPriorityColor = (priority) => {
     switch (priority) {
       case "High": return "bg-red-100 border-red-300";
@@ -47,11 +28,7 @@ const SortableTask = ({ task, getUserName }) => {
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`p-3 mb-2 bg-white rounded-lg shadow-sm border-l-4 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${getPriorityColor(task.priority)} ${isOverdue ? 'border-red-500' : ''}`}
+      className={`p-3 mb-2 bg-white rounded-lg shadow-sm border-l-4 hover:shadow-md transition-shadow ${getPriorityColor(task.priority)} ${isOverdue ? 'border-red-500' : ''}`}
     >
       <h4 className="font-semibold text-sm mb-1">{task.title}</h4>
       <p className="text-xs text-gray-600 mb-2">{task.description}</p>
@@ -65,6 +42,9 @@ const SortableTask = ({ task, getUserName }) => {
               Role: {task.assignedTo.role.name}
             </p>
           )}
+          <p className="text-xs text-gray-500">
+            Assigned by: {task.assignedBy ? getUserName(task.assignedBy) : "Not recorded"}
+          </p>
         </div>
       )}
       <div className="flex justify-between items-center text-xs">
@@ -84,16 +64,14 @@ const SortableTask = ({ task, getUserName }) => {
   );
 };
 
-const Column = ({ id, title, tasks, color, getUserName }) => {
+const Column = ({ title, tasks, color, getUserName }) => {
   return (
     <div className={`flex-1 min-w-[280px] md:min-w-[320px] max-w-[400px] p-4 rounded-lg basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 ${color}`}>
       <h3 className="font-bold text-lg mb-4 text-gray-800">{title}</h3>
       <div className="space-y-2">
-        <SortableContext items={tasks.map(t => t._id)} strategy={verticalListSortingStrategy}>
-          {tasks.map((task) => (
-            <SortableTask key={task._id} task={task} getUserName={getUserName} />
-          ))}
-        </SortableContext>
+        {tasks.map((task) => (
+          <TaskCard key={task._id ?? task.id} task={task} getUserName={getUserName} />
+        ))}
       </div>
     </div>
   );
@@ -136,9 +114,7 @@ const UserStatusSummary = ({ userStatuses }) => {
 };
 
 const KanbanBoard = ({ tasks, users = [], showUserStatusSummary = false }) => {
-  const dispatch = useDispatch();
   const safeTasks = Array.isArray(tasks) ? tasks : [];
-  const prevTasksRef = useRef(safeTasks);
 
   const getUserName = (assignedTo) => {
     if (!assignedTo) return "Unassigned";
@@ -156,39 +132,15 @@ const KanbanBoard = ({ tasks, users = [], showUserStatusSummary = false }) => {
     return "Unknown User";
   };
 
-  const [columns, setColumns] = useState({
-    backlog: safeTasks.filter(t => t.status === "Backlog") || [],
-    todo: safeTasks.filter(t => t.status === "To Do") || [],
-    inProgress: safeTasks.filter(t => t.status === "In Progress") || [],
-    testing: safeTasks.filter(t => t.status === "Testing") || [],
-    completed: safeTasks.filter(t => t.status === "Completed") || [],
-  });
+  const [columns, setColumns] = useState(() => buildColumns(safeTasks));
 
   // Update columns when tasks prop changes
+  const tasksSignature = JSON.stringify(safeTasks);
   useEffect(() => {
-    if (JSON.stringify(safeTasks) !== JSON.stringify(prevTasksRef.current)) {
-      setColumns({
-        backlog: safeTasks.filter(t => t.status === "Backlog") || [],
-        todo: safeTasks.filter(t => t.status === "To Do") || [],
-        inProgress: safeTasks.filter(t => t.status === "In Progress") || [],
-        testing: safeTasks.filter(t => t.status === "Testing") || [],
-        completed: safeTasks.filter(t => t.status === "Completed") || [],
-      });
-      prevTasksRef.current = safeTasks;
-    }
-  }, [safeTasks]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+    setColumns(buildColumns(safeTasks));
+  }, [tasksSignature]);
 
   const userStatuses = useMemo(() => {
-    console.log('Users:', users);
-    console.log('Tasks:', safeTasks);
-
     const userMap = {};
 
     // Initialize all users with 0 counts
@@ -223,133 +175,48 @@ const KanbanBoard = ({ tasks, users = [], showUserStatusSummary = false }) => {
     });
 
     const result = Object.values(userMap);
-    console.log('User statuses:', result);
     return result;
   }, [safeTasks, users]);
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-
-    if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    // Find source and destination columns
-    let sourceColumn = null;
-    let destColumn = null;
-    let sourceTasks = [];
-    let destTasks = [];
-
-    Object.keys(columns).forEach(col => {
-      if (columns[col].some(t => t._id === activeId)) {
-        sourceColumn = col;
-        sourceTasks = [...columns[col]];
-      }
-      if (columns[col].some(t => t._id === overId) || col === overId) {
-        destColumn = col;
-        destTasks = [...columns[col]];
-      }
-    });
-
-    if (!sourceColumn || !destColumn) return;
-
-    // If dropping on a column header
-    if (Object.keys(columns).includes(overId)) {
-      destColumn = overId;
-      destTasks = [...columns[destColumn]];
-    }
-
-    // Find the task being moved
-    const activeTask = sourceTasks.find(t => t._id === activeId);
-    if (!activeTask) return;
-
-    // Remove from source
-    const newSourceTasks = sourceTasks.filter(t => t._id !== activeId);
-
-    // Add to destination
-    let newDestTasks;
-    if (Object.keys(columns).includes(overId)) {
-      // Dropped on column header
-      newDestTasks = [...destTasks, activeTask];
-    } else {
-      // Dropped on another task
-      const overIndex = destTasks.findIndex(t => t._id === overId);
-      newDestTasks = [...destTasks];
-      newDestTasks.splice(overIndex, 0, activeTask);
-    }
-
-    // Update columns
-    const newColumns = {
-      ...columns,
-      [sourceColumn]: newSourceTasks,
-      [destColumn]: newDestTasks,
-    };
-
-    setColumns(newColumns);
-
-    // Update task status in backend
-    const statusMap = {
-      backlog: "Backlog",
-      todo: "To Do",
-      inProgress: "In Progress",
-      testing: "Testing",
-      completed: "Completed",
-    };
-
-    dispatch(updateTaskStatus({
-      taskId: activeId,
-      status: statusMap[destColumn],
-    }));
-  };
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Kanban Board ðŸ—‚ï¸</h2>
+      <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-800">
+        <LayoutGrid className="h-5 w-5 text-emerald-700" aria-hidden="true" />
+        Kanban Board
+      </h2>
       
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex flex-wrap gap-4 md:gap-6 justify-center">
+      <div className="flex flex-wrap gap-4 md:gap-6 justify-center">
           <Column
-            id="backlog"
             title="Backlog"
             tasks={columns.backlog}
             color="bg-gray-100"
             getUserName={getUserName}
           />
           <Column
-            id="todo"
             title="To Do"
             tasks={columns.todo}
             color="bg-blue-100"
             getUserName={getUserName}
           />
           <Column
-            id="inProgress"
             title="In Progress"
             tasks={columns.inProgress}
             color="bg-yellow-100"
             getUserName={getUserName}
           />
           <Column
-            id="testing"
             title="Testing"
             tasks={columns.testing}
             color="bg-purple-100"
             getUserName={getUserName}
           />
           <Column
-            id="completed"
             title="Completed"
             tasks={columns.completed}
             color="bg-green-100"
             getUserName={getUserName}
           />
-        </div>
-      </DndContext>
+      </div>
     </div>
   );
 };

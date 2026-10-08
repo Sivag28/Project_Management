@@ -20,9 +20,9 @@ export const markNotificationAsRead = createAsyncThunk(
 
 export const markAllNotificationsAsRead = createAsyncThunk(
   "notifications/markAllAsRead",
-  async () => {
+  async (userId) => {
     const response = await API.put("/notifications/read-all");
-    return response.data;
+    return { ...response.data, userId };
   }
 );
 
@@ -56,10 +56,13 @@ const notificationSlice = createSlice({
     builder
       .addCase(fetchNotifications.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
-        state.notifications = action.payload.notifications;
-        state.unreadCount = action.payload.notifications.filter(n => !n.readBy.includes(action.payload.userId)).length;
+        state.notifications = action.payload.notifications || [];
+        state.unreadCount = state.notifications.filter((notification) =>
+          !(notification.readBy || []).some((id) => String(id?._id || id) === String(action.payload.userId))
+        ).length;
         state.loading = false;
         state.error = null;
       })
@@ -69,13 +72,21 @@ const notificationSlice = createSlice({
       })
       .addCase(markNotificationAsRead.fulfilled, (state, action) => {
         const notification = state.notifications.find(n => n._id === action.payload.notification._id);
-        if (notification && !notification.readBy.includes(action.payload.userId)) {
-          notification.readBy.push(action.payload.userId);
-          state.unreadCount -= 1;
+        if (notification) {
+          notification.readBy = action.payload.notification.readBy || notification.readBy || [];
+          if (!notification.readBy.some((id) => String(id?._id || id) === String(action.payload.userId))) {
+            notification.readBy.push(action.payload.userId);
+          }
+          state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
       })
-      .addCase(markAllNotificationsAsRead.fulfilled, (state) => {
-        state.notifications.forEach(n => n.isRead = true);
+      .addCase(markAllNotificationsAsRead.fulfilled, (state, action) => {
+        state.notifications.forEach((notification) => {
+          notification.readBy = notification.readBy || [];
+          if (!notification.readBy.some((id) => String(id?._id || id) === String(action.payload.userId))) {
+            notification.readBy.push(action.payload.userId);
+          }
+        });
         state.unreadCount = 0;
       });
   }

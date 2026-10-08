@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { login } from "../redux/authSlice";
 import { Link, useNavigate } from "react-router-dom";
-import { FaEnvelope, FaLock, FaSignInAlt } from "react-icons/fa";
+import { FaEnvelope, FaLock, FaSignInAlt, FaCheckCircle, FaSpinner } from "react-icons/fa";
+import AuthIllustration from "../components/AuthIllustration";
 import Swal from "sweetalert2";
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -17,6 +18,8 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const result = await dispatch(login(formData)).unwrap();
       console.log('Login result:', result);
@@ -45,33 +48,22 @@ const Login = () => {
         title: 'Login Failed',
         text: error.message || 'Invalid email or password',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-16 left-16 w-40 h-40 bg-white/10 rounded-full animate-bounce"></div>
-        <div className="absolute top-80 right-24 w-32 h-32 bg-white/10 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-40 left-1/4 w-28 h-28 bg-white/10 rounded-full animate-bounce"></div>
-        <div className="absolute bottom-16 right-16 w-36 h-36 bg-white/10 rounded-full animate-pulse"></div>
-        <div className="absolute top-1/3 left-8 w-24 h-24 bg-white/10 rounded-full animate-bounce"></div>
-        <div className="absolute top-2/3 right-8 w-20 h-20 bg-white/10 rounded-full animate-pulse"></div>
-      </div>
-
-      <div className="relative z-10 w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full mb-4">
-            <FaSignInAlt className="text-white text-2xl" />
+    <div className="auth-page auth-login min-h-screen flex items-center justify-center relative overflow-hidden">
+      <div className="auth-layout auth-layout-login">
+        <div className="auth-form-column">
+          <div className="auth-heading">
+            <div className="auth-heading-icon"><FaSignInAlt /></div>
+            <h1>Welcome back</h1>
+            <p>Sign in to your ProManage workspace</p>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Welcome Back</h1>
-          <p className="text-white/80">Sign in to your account</p>
-        </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/20">
+          <form onSubmit={handleSubmit} className="auth-form">
           <div className="space-y-6">
             {/* Email Input */}
             <div className="relative">
@@ -108,30 +100,44 @@ const Login = () => {
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full bg-white text-purple-600 py-3 rounded-lg font-semibold hover:bg-white/90 transform hover:scale-105 transition-all duration-300 shadow-lg"
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
+              className="auth-submit w-full bg-white text-purple-600 py-3 rounded-lg font-semibold hover:bg-white/90 transform hover:scale-105 transition-all duration-300 shadow-lg"
             >
-              Sign In
+              {isSubmitting ? (
+                <><FaSpinner className="mr-2 inline-block animate-spin" aria-hidden="true" />Signing in…</>
+              ) : "Sign In"}
             </button>
           </div>
 
-          {/* Signup Link */}
-          <div className="mt-6 text-center">
-            <p className="text-white/80">
-              Don't have an account?{" "}
+          <div className="auth-form-footer">
+            <p>
+              New to ProManage?{" "}
               <Link
                 to="/signup"
-                className="text-white font-semibold hover:text-white/80 underline decoration-2 underline-offset-2 transition-all duration-300"
+                className="font-semibold"
               >
-                Create one here
+                Create an account
               </Link>
             </p>
           </div>
-        </form>
-
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-white/60 text-sm">Access your dashboard</p>
+          </form>
         </div>
+
+        <aside className="auth-visual" aria-hidden="true">
+          <div className="auth-visual-brand">ProManage<span>.</span></div>
+          <div className="auth-visual-copy">
+            <span className="auth-visual-eyebrow">YOUR WORKSPACE, IN SYNC</span>
+            <h2>Good to have you back.</h2>
+            <p>Pick up where your team left off and keep great work moving.</p>
+          </div>
+          <div className="auth-artwork">
+            <div className="auth-artwork-orbit"></div>
+            <AuthIllustration />
+            <div className="auth-artwork-badge"><FaCheckCircle /><span>On track</span></div>
+          </div>
+          <div className="auth-visual-caption">Everything your team needs to do its best work.</div>
+        </aside>
       </div>
     </div>
   );

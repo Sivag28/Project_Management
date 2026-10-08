@@ -1,6 +1,6 @@
 import ActivityLog from "../models/ActivityLog.js";
-import Notification from "../models/Notification.js";
-import User from "../models/User.js";
+import Project from "../models/Project.js";
+import { notifyProjectParticipants } from "../utils/projectNotifications.js";
 
 export const getActivityLogs = async (req, res) => {
   const logs = await ActivityLog.find().populate("user", "name").sort({ timestamp: -1 });
@@ -9,14 +9,25 @@ export const getActivityLogs = async (req, res) => {
 
 export const createActivityNotification = async (activity) => {
   try {
-    // Get all users to notify about the action
-    const users = await User.find({}, '_id');
-    const notifications = users.map(user => ({
-      user: user._id,
-      message: `${activity.user.name} performed action: ${activity.action}`,
-      type: "action"
-    }));
-    await Notification.insertMany(notifications);
+    const companyId = activity.companyId || activity.user?.company?._id || activity.user?.company;
+    if (!companyId) return;
+
+    let project = null;
+    if (activity.projectId) {
+      project = await Project.findOne({ _id: activity.projectId, company: companyId }).select("title");
+      if (!project) return;
+    }
+
+    await notifyProjectParticipants({
+      companyId,
+      actorId: activity.user?._id || activity.user,
+      excludeUserIds: activity.excludeUserIds,
+      projectId: project?._id,
+      taskId: activity.taskId,
+      message: `${activity.user?.name || "A team member"}: ${activity.action}${project?.title ? ` · ${project.title}` : ""}`,
+      type: "action",
+      io: activity.io,
+    });
   } catch (error) {
     console.error("Error creating activity notification:", error);
   }

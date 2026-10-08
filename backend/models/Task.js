@@ -5,6 +5,7 @@ const taskSchema = new mongoose.Schema({
   description: String,
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   company: { type: mongoose.Schema.Types.ObjectId, ref: "Company" },
   priority: String,
   status: { type: String, default: "Backlog" },

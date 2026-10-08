@@ -9,6 +9,7 @@ import ActivityTimeline from "../components/ActivityTimeline";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { Link, useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
+import { FaHome, FaProjectDiagram, FaUsers, FaTasks, FaChartBar, FaChevronRight, FaSignOutAlt } from "react-icons/fa";
 import {
   DndContext,
   closestCenter,
@@ -26,6 +27,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import "./AdminDashboard.css";
 
 const SortableUser = ({ user, isSelected, onToggle }) => {
   const {
@@ -557,11 +559,14 @@ const AdminDashboard = () => {
     });
   };
 
+  const getTaskProjectId = (task) => String(task.projectId?._id ?? task.projectId ?? '');
+
   const generateReport = async () => {
     setIsGenerating(true);
     try {
       const filteredTasks = filterDataByDate(tasks || [], dateRange.start, dateRange.end);
-      const filteredProjects = filterDataByDate(projects || [], dateRange.start, dateRange.end);
+      // Project totals represent the current workspace; date filters apply to activity/task metrics.
+      const filteredProjects = projects || [];
       
       // Compute team performance from filtered tasks
       let filteredTeamPerformance = computeTeamPerformance(users, filteredTasks);
@@ -581,12 +586,12 @@ const AdminDashboard = () => {
 
       // Filter projects with member's tasks
       const memberProjects = filteredProjects.map(project => {
-        const projectTasks = filteredTasks.filter(task => task.projectId === project._id);
+        const projectTasks = filteredTasks.filter(task => getTaskProjectId(task) === String(project._id));
         const completed = projectTasks.filter(task => task.status === 'Completed').length;
         const total = projectTasks.length;
         const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
         return { ...project, progress, completedTasks: completed, totalTasks: total };
-      }).filter(p => p.totalTasks > 0);  // Only projects with tasks
+      });
 
 // Real trends data - aggregate by week from real task createdAt dates
       const weekStart = dateRange.start ? new Date(dateRange.start) : new Date(Date.now() - 7*7*24*60*60*1000); // last 7 weeks
@@ -646,37 +651,130 @@ const AdminDashboard = () => {
   };
 
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     if (!reportData) return;
-    const headers = ['Metric', 'Value'];
-    const csv = [
-      headers.join(','),
-      ...Object.entries(reportData.data).map(([k, v]) => `${k},${JSON.stringify(v)}`)
-    ].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `report-${reportType}-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
+    const { downloadReportCsv } = await import('../utils/downloadReportCsv');
+    const data = reportData.data;
+    const dateRangeForReport = reportData.filters?.dateRange || {};
+    const fileDate = new Date().toISOString().slice(0, 10);
+    downloadReportCsv({
+      title: 'ProManage - Admin Analytics Report',
+      filename: `admin-report-${reportData.type}-${fileDate}.csv`,
+      metadata: [
+        ['Report period', reportData.type],
+        ['Date range', dateRangeForReport.start || dateRangeForReport.end ? `${dateRangeForReport.start || 'Start'} to ${dateRangeForReport.end || 'Present'}` : 'All dates'],
+        ['Team member', reportData.filters?.selectedMemberName || 'All team members'],
+        ['Generated', new Date(reportData.generatedAt || Date.now()).toLocaleString()],
+      ],
+      sections: [
+        {
+          title: 'Summary',
+          headers: ['Metric', 'Value'],
+          rows: [
+            ['Total projects', projectProgress.length],
+            ['Total tasks', data.totalTasks],
+            ['Completed tasks', data.completedTasks],
+            ['In progress tasks', data.activeTasks],
+            ['To do tasks', data.pendingTasks],
+            ['Overdue tasks', data.overdueTasks],
+          ],
+        },
+        {
+          title: 'Project progress',
+          headers: ['Project', 'Status', 'Total tasks', 'Completed tasks', 'Progress'],
+          rows: projectProgress.map((project) => [project.title, project.status || 'Active', project.totalTasks, project.completedTasks, `${project.progress || 0}%`]),
+        },
+        {
+          title: 'Team performance',
+          headers: ['Team member', 'Total tasks', 'Completed', 'In progress', 'To do', 'Performance score'],
+          rows: (data.teamPerformance || []).filter((member) => member.total > 0).map((member) => [member.name, member.total, member.completed, member.inProgress, member.todo, `${member.performanceScore}%`]),
+        },
+        {
+          title: 'Weekly trends',
+          headers: ['Week', 'Tasks created', 'Tasks completed'],
+          rows: (data.trends || []).map((trend) => [trend.week, trend.tasksCreated, trend.tasksCompleted]),
+        },
+      ],
+    });
   };
 
-  const exportToPDF = () => {
-    // Requires jsPDF/html2canvas; simple text PDF for now
+  const exportToPDF = async () => {
     if (!reportData) return;
-    const { jsPDF } = window.jspdf || {};
-    if (!jsPDF) {
-      Swal.fire('PDF export requires jsPDF library.');
-      return;
+    try {
+      const { generateReportPdf } = await import('../utils/generateReportPdf');
+      const data = reportData.data;
+      const range = reportData.filters?.dateRange || {};
+      const dateLabel = range.start || range.end
+        ? `${range.start || 'Start'} to ${range.end || 'Present'}`
+        : `${reportData.type} report`;
+      const fileDate = new Date().toISOString().slice(0, 10);
+
+      generateReportPdf({
+        title: 'Admin Analytics Report',
+        subtitle: `${reportData.filters?.selectedMemberName || 'All team members'}  ·  ${dateLabel}`,
+        reportType: reportData.type,
+        generatedAt: reportData.generatedAt,
+        dateRange: range,
+        filename: `admin-report-${reportData.type}-${fileDate}.pdf`,
+        metrics: [
+          { label: 'Total projects', value: projectProgress.length },
+          { label: 'Total tasks', value: data.totalTasks },
+          { label: 'Completed', value: data.completedTasks },
+          { label: 'In progress', value: data.activeTasks },
+          { label: 'To do', value: data.pendingTasks },
+          { label: 'Overdue', value: data.overdueTasks },
+        ],
+        sections: [
+          {
+            title: 'Project progress',
+            headers: ['Project', 'Status', 'Tasks', 'Completed', 'Progress'],
+            widths: [62, 32, 24, 30, 34],
+            rows: projectProgress.map((project) => [
+              project.title,
+              project.status || 'Active',
+              project.totalTasks,
+              project.completedTasks,
+              `${project.progress || 0}%`,
+            ]),
+          },
+          {
+            title: 'Team performance',
+            headers: ['Team member', 'Tasks', 'Completed', 'In progress', 'To do', 'Score'],
+            widths: [52, 21, 27, 27, 21, 34],
+            rows: (data.teamPerformance || []).filter((member) => member.total > 0).map((member) => [
+              member.name,
+              member.total,
+              member.completed,
+              member.inProgress,
+              member.todo,
+              `${member.performanceScore}%`,
+            ]),
+          },
+          {
+            title: 'Weekly trends',
+            headers: ['Period', 'Tasks created', 'Tasks completed'],
+            widths: [76, 53, 53],
+            rows: (data.trends || []).map((trend) => [trend.week, trend.tasksCreated, trend.tasksCompleted]),
+          },
+        ],
+      });
+      Swal.fire({
+        icon: 'success',
+        title: 'PDF exported',
+        text: 'Your report has been saved as a PDF.',
+        confirmButtonColor: '#3d7650',
+        timer: 2200,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'PDF export failed',
+        text: 'Please try again or use CSV export.',
+        confirmButtonColor: '#3d7650',
+      });
     }
-    const doc = new jsPDF();
-    doc.text(`Report Summary`, 20, 20);
-    let y = 30;
-    Object.entries(reportData.data).forEach(([k, v]) => {
-      doc.text(`${k}: ${JSON.stringify(v)}`, 20, y);
-      y += 10;
-    });
-    doc.save(`report-${reportType}.pdf`);
   };
 
   // Calculate analytics
@@ -684,7 +782,7 @@ const AdminDashboard = () => {
     task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'Completed'
   );
   const projectProgress = (projects || []).map(project => {
-    const projectTasks = (tasks || []).filter(task => task.projectId === project._id);
+    const projectTasks = (tasks || []).filter(task => getTaskProjectId(task) === String(project._id));
     const completed = projectTasks.filter(task => task.status === 'Completed').length;
     const total = projectTasks.length;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -692,29 +790,25 @@ const AdminDashboard = () => {
   });
 
   const sectionConfig = [
-    { id: 'overview', label: 'Overview', icon: 'fa-home', description: 'Command center' },
-    { id: 'projects', label: 'Projects', icon: 'fa-project-diagram', description: 'Pipeline and delivery' },
-    { id: 'team', label: 'Team', icon: 'fa-users', description: 'Members and roles' },
-    { id: 'tasks', label: 'Tasks', icon: 'fa-tasks', description: 'Execution board' },
-    { id: 'reports', label: 'Reports', icon: 'fa-chart-bar', description: 'Analytics and exports' },
+    { id: 'overview', label: 'Overview', icon: <FaHome className="admin-section-icon" aria-hidden="true" />, description: 'Command center' },
+    { id: 'projects', label: 'Projects', icon: <FaProjectDiagram className="admin-section-icon" aria-hidden="true" />, description: 'Pipeline and delivery' },
+    { id: 'team', label: 'Team', icon: <FaUsers className="admin-section-icon" aria-hidden="true" />, description: 'Members and roles' },
+    { id: 'tasks', label: 'Tasks', icon: <FaTasks className="admin-section-icon" aria-hidden="true" />, description: 'Execution board' },
+    { id: 'reports', label: 'Reports', icon: <FaChartBar className="admin-section-icon" aria-hidden="true" />, description: 'Analytics and exports' },
   ];
 
-  const activeSectionMeta = sectionConfig.find((section) => section.id === activeSection) || sectionConfig[0];
   const panelClassName = "rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-md";
   const inputClassName = "w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder:text-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40";
   const secondaryButtonClassName = "rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-200 transition-all hover:bg-white/10";
   const primaryButtonClassName = "rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:from-cyan-400 hover:to-blue-400";
 
   return (
-    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.18),_transparent_26%),linear-gradient(180deg,_#020617_0%,_#0f172a_48%,_#111827_100%)] text-white">
+    <div className="admin-dashboard flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.18),_transparent_26%),linear-gradient(180deg,_#020617_0%,_#0f172a_48%,_#111827_100%)] text-white">
       {/* Sidebar Navigation */}
-      <div className="hidden w-80 border-r border-white/10 bg-slate-950/70 px-6 py-8 backdrop-blur-xl lg:block">
-        <div className="rounded-[28px] border border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 p-6 shadow-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-300">Admin panel</p>
-          <h2 className="mt-3 text-3xl font-bold text-white">ProManage</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-300">
-            Cleaner control surfaces for projects, people, tasks, and reporting.
-          </p>
+      <div className="admin-sidebar hidden w-80 border-r border-white/10 bg-slate-950/70 px-6 py-8 backdrop-blur-xl lg:block">
+        <div className="admin-brand rounded-[28px] border border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 p-6 shadow-2xl">
+          <h2 className="text-2xl font-bold tracking-tight text-white">ProManage<span>.</span></h2>
+          <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em]">Workspace</p>
         </div>
         <nav className="mt-8">
           <ul className="space-y-3">
@@ -723,7 +817,7 @@ const AdminDashboard = () => {
                 <button
                   type="button"
                   onClick={() => setActiveSection(section.id)}
-                  className={`flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition-all ${
+                  className={`admin-nav-item flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition-all ${
                     activeSection === section.id
                       ? 'border-cyan-300/40 bg-gradient-to-r from-cyan-500/25 to-blue-500/20 shadow-lg shadow-cyan-900/30'
                       : 'border-white/8 bg-white/5 hover:border-white/15 hover:bg-white/10'
@@ -733,14 +827,14 @@ const AdminDashboard = () => {
                     <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
                       activeSection === section.id ? 'bg-white/15 text-cyan-200' : 'bg-slate-900/70 text-slate-300'
                     }`}>
-                      <i className={`fas ${section.icon}`}></i>
+                      {section.icon}
                     </span>
                     <div>
                       <p className="font-semibold text-white">{section.label}</p>
                       <p className="text-xs text-slate-400">{section.description}</p>
                     </div>
                   </div>
-                  <i className="fas fa-chevron-right text-xs text-slate-500"></i>
+                  <FaChevronRight className="text-xs text-slate-500" aria-hidden="true" />
                 </button>
               </li>
             ))}
@@ -751,22 +845,19 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header/Navbar */}
-        <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/60 px-4 py-4 shadow-lg backdrop-blur-xl md:px-8">
+        <header className="admin-header sticky top-0 z-20 border-b border-white/10 bg-slate-950/60 px-4 py-4 shadow-lg backdrop-blur-xl md:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-slate-950 shadow-lg shadow-cyan-900/40">
-                <i className={`fas ${activeSectionMeta.icon} text-xl`}></i>
+            <div className="admin-header-identity flex items-center gap-3">
+              <div className="admin-header-avatar">
+                <span>{user?.name?.trim()?.charAt(0)?.toUpperCase() || 'A'}</span>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">{activeSectionMeta.description}</p>
-                <h1 className="text-2xl font-bold text-white">{activeSectionMeta.label}</h1>
+                <h1 className="text-xl font-semibold tracking-tight text-white">Admin dashboard</h1>
+                <span className="admin-role-chip">{user?.role?.name || 'Administrator'}</span>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <button className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900/70 text-slate-300 transition-all hover:bg-slate-800 hover:text-white">
-                <i className="fas fa-bell text-lg"></i>
-              </button>
-              <div className="flex items-center gap-3 rounded-2xl bg-slate-900/70 px-3 py-2">
+            <div className="admin-header-actions flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <div className="admin-user-summary flex items-center gap-3 rounded-2xl bg-slate-900/70 px-3 py-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 font-bold text-white">
                   {user?.name?.charAt(0) || "A"}
                 </div>
@@ -779,6 +870,7 @@ const AdminDashboard = () => {
                 onClick={handleLogout}
                 className="rounded-2xl bg-rose-500/10 px-4 py-2.5 text-sm font-semibold text-rose-200 transition-colors hover:bg-rose-500/20 hover:text-white"
               >
+                <FaSignOutAlt className="mr-2" aria-hidden="true" />
                 Logout
               </button>
             </div>
@@ -798,7 +890,7 @@ const AdminDashboard = () => {
                     : 'border-white/10 bg-white/5 text-slate-300'
                 }`}
               >
-                <i className={`fas ${section.icon}`}></i>
+                {section.icon}
                 {section.label}
               </button>
             ))}
@@ -890,24 +982,24 @@ const AdminDashboard = () => {
               {/* Quick Actions */}
               <div className="bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
                 <h3 className="text-2xl font-bold text-white mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-3">
                   <button
                     onClick={() => setActiveSection('projects')}
-                    className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 flex flex-col items-center"
+                    className="w-full max-w-xs bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 flex flex-col items-center"
                   >
                     <i className="fas fa-plus text-2xl mb-2"></i>
                     <span>New Project</span>
                   </button>
                   <button
                     onClick={() => setActiveSection('tasks')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 flex flex-col items-center"
+                    className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 flex flex-col items-center"
                   >
                     <i className="fas fa-tasks text-2xl mb-2"></i>
                     <span>Add Task</span>
                   </button>
                   <button
                     onClick={() => setActiveSection('reports')}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 flex flex-col items-center"
+                    className="w-full max-w-xs bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 flex flex-col items-center"
                   >
                     <i className="fas fa-chart-bar text-2xl mb-2"></i>
                     <span>View Reports</span>
@@ -921,7 +1013,7 @@ const AdminDashboard = () => {
                 <div className="lg:col-span-2">
                   <h3 className="text-2xl font-bold text-white mb-4">Recent Team Activity</h3>
                   <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
-                    <ActivityTimeline />
+                    <ActivityTimeline projects={projects || []} tasks={tasks || []} />
                   </div>
                 </div>
 
@@ -1372,7 +1464,7 @@ const AdminDashboard = () => {
               <KanbanBoard 
                   tasks={
                     selectedProjectId 
-                      ? tasks.filter(task => task.projectId && task.projectId._id === selectedProjectId)
+                      ? tasks.filter(task => getTaskProjectId(task) === String(selectedProjectId))
                       : tasks
                   } 
                   users={users} 
@@ -1393,7 +1485,7 @@ const AdminDashboard = () => {
                     <button
                       onClick={generateReport}
                       disabled={isGenerating}
-                      className="bg-white text-gray-900 font-bold py-3 px-8 rounded-xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-2"
+                      className="admin-generate-report-button bg-white text-gray-900 font-bold py-3 px-8 rounded-xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-2"
                     >
                       {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-bolt"></i>}
                       Generate Report
@@ -1496,7 +1588,7 @@ const AdminDashboard = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-gray-400 text-sm font-medium">Total Projects</p>
-                          <p className="text-3xl font-bold text-white">{reportData.data.totalProjects}</p>
+                          <p className="text-3xl font-bold text-white">{projectProgress.length}</p>
                         </div>
                         <div className="text-4xl opacity-75">📁</div>
                       </div>

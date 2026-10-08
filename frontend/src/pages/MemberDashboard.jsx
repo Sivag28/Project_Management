@@ -1,8 +1,8 @@
 
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchProjects } from "../redux/projectSlice";
-import { fetchTasksAssignedToUser, fetchMemberCompanyTasks, fetchAllTasks, updateTaskStatus } from "../redux/taskSlice";
+import { fetchProjects, createProject } from "../redux/projectSlice";
+import { fetchTasksAssignedToUser, fetchAllTasks, updateTaskStatus, assignTask, createTask } from "../redux/taskSlice";
 import { fetchUsers } from "../redux/userSlice";
 import ProjectCard from "../components/ProjectCard";
 import TaskCard from "../components/TaskCard";
@@ -11,9 +11,10 @@ import CommentFeed from "../components/CommentFeed";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { Link, useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
-import { FaSearch, FaList, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaStickyNote, FaBell, FaComments } from 'react-icons/fa';
+import { FaSearch, FaList, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaStickyNote, FaComments, FaProjectDiagram, FaTasks, FaCalendarAlt, FaChartLine, FaUserCircle, FaChevronDown, FaChevronRight, FaSignOutAlt } from 'react-icons/fa';
 import StickyNoteBoard from "../components/StickyNoteBoard";
 import ProjectChatPanel from "../components/ProjectChatPanel";
+import "./MemberDashboard.css";
 
 import { fetchNotes } from "../redux/noteSlice";
 import API from "../services/api";
@@ -23,6 +24,12 @@ const MemberDashboard = () => {
   const { projects, loading: projectsLoading, error: projectsError } = useSelector((state) => state.projects);
   const { tasks, allTasks, loading, error } = useSelector((state) => state.tasks);
   const users = useSelector((state) => state?.users || []);
+  const rolePermissions = Array.isArray(user?.role?.permissions) ? user.role.permissions : [];
+  const isManager = user?.role?.name?.toLowerCase() === 'manager';
+  const canViewAllCompanyTasks = isManager || user?.role?.name?.toLowerCase() === 'admin';
+  const canCreateManagerProjects = isManager && rolePermissions.includes('create_project');
+  const canAssignManagerTasks = isManager && rolePermissions.includes('assign_task');
+  const canViewTeamAnalytics = isManager && rolePermissions.includes('view_analytics');
   console.log('MemberDashboard users:', users);
 
   const [activeSection, setActiveSection] = useState('projects');
@@ -30,7 +37,19 @@ const MemberDashboard = () => {
   const [activeTaskTab, setActiveTaskTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [showProjectNotifications, setShowProjectNotifications] = useState(false);
+  const [managerProject, setManagerProject] = useState({ title: '', description: '', deadline: '' });
+  const [managerNewTask, setManagerNewTask] = useState({
+    title: '',
+    description: '',
+    projectId: '',
+    assignedTo: '',
+    dueDate: '',
+    priority: 'Medium',
+    estimatedHours: 0,
+    dependencies: []
+  });
+  const [managerTaskId, setManagerTaskId] = useState('');
+  const [managerAssigneeId, setManagerAssigneeId] = useState('');
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   // Reports State (adapted from AdminDashboard)
   const [reportType, setReportType] = useState('weekly');
@@ -40,7 +59,8 @@ const MemberDashboard = () => {
   const [selectedTeamMember, setSelectedTeamMember] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const navigate = useNavigate();
-
+  const getTaskProjectId = (task) => String(task.projectId?._id ?? task.projectId ?? '');
+  const unassignedTasks = (allTasks || []).filter((task) => !task.assignedTo);
   useEffect(() => {
     dispatch(fetchProjects());
     dispatch(fetchTasksAssignedToUser());
@@ -78,7 +98,7 @@ const MemberDashboard = () => {
         console.log('Task updated:', data);
         // Refresh tasks when a task is updated
         dispatch(fetchTasksAssignedToUser());
-        dispatch(fetchMemberCompanyTasks());
+        dispatch(fetchAllTasks());
       };
 
 
@@ -104,39 +124,6 @@ const MemberDashboard = () => {
   const myProjects = (projects || []).filter((project) => myProjectIds.has(project._id.toString()));
   const completedTasks = myTasks.filter((t) => t.status === "Completed").length;
   const pendingTasks = myTasks.filter((t) => t.status !== "Completed").length;
-  const upcomingDeadlines = myTasks.filter((t) => t.dueDate && new Date(t.dueDate) > new Date()).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)).slice(0, 3);
-  const overdueTaskAlerts = myTasks
-    .filter((t) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "Completed")
-    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-    .slice(0, 3);
-  const projectSnapshots = myProjects.slice(0, 3).map((project) => ({
-    ...project,
-    openTasks: myTasks.filter((task) => task.projectId && (task.projectId._id || task.projectId) === project._id && task.status !== 'Completed').length
-  }));
-  const notificationItems = [
-    ...overdueTaskAlerts.map((task) => ({
-      id: `overdue-${task._id}`,
-      type: 'overdue',
-      title: task.title,
-      subtitle: `Overdue since ${new Date(task.dueDate).toLocaleDateString()}`,
-      accent: 'red'
-    })),
-    ...upcomingDeadlines.map((task) => ({
-      id: `deadline-${task._id}`,
-      type: 'deadline',
-      title: task.title,
-      subtitle: `Due on ${new Date(task.dueDate).toLocaleDateString()}`,
-      accent: 'amber'
-    })),
-    ...projectSnapshots.map((project) => ({
-      id: `project-${project._id}`,
-      type: 'project',
-      title: project.title,
-      subtitle: `${project.openTasks} open ${project.openTasks === 1 ? 'task' : 'tasks'}`,
-      accent: 'blue'
-    }))
-  ].slice(0, 6);
-
   const currentDate = new Date();
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -236,9 +223,9 @@ const MemberDashboard = () => {
     setIsGenerating(true);
     try {
       // Filter tasks based on selected project
-      let filteredTasks = myTasks;
+      let filteredTasks = canViewTeamAnalytics ? (allTasks || []) : myTasks;
       if (selectedProjectId) {
-        filteredTasks = myTasks.filter(task => task.projectId && task.projectId._id === selectedProjectId);
+        filteredTasks = myTasks.filter(task => getTaskProjectId(task) === String(selectedProjectId));
       }
 
       // Basic metrics
@@ -247,8 +234,8 @@ const MemberDashboard = () => {
       const overdueTasks = filteredTasks.filter(t => 
         t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Completed'
       ).length;
-      const totalProjects = projects.filter(p => 
-        filteredTasks.some(t => t.projectId && t.projectId._id === p._id)
+      const totalProjects = (projects || []).filter((project) =>
+        !selectedProjectId || String(project._id) === String(selectedProjectId)
       ).length;
 
       // Status breakdown for pie chart
@@ -260,8 +247,8 @@ const MemberDashboard = () => {
 
       // Team performance (group by assignedTo if available)
       const teamPerformance = users.map(user => {
-        const userTasks = filteredTasks.filter(t => 
-          t.assignedTo && (t.assignedTo._id || t.assignedTo) === user._id
+        const userTasks = filteredTasks.filter(t =>
+          t.assignedTo && String(t.assignedTo._id || t.assignedTo) === String(user._id)
         );
         return {
           name: user.name || 'Unknown',
@@ -337,89 +324,135 @@ const MemberDashboard = () => {
     }
   };
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     if (!reportData) return;
-    const headers = ['Metric', 'Value'];
-    const csvContent = [
-      headers.join(','),
-      ...Object.entries(reportData.data).flatMap(([key, value]) => {
-        if (Array.isArray(value)) {
-          return value.map((item, idx) => `${key}_${idx},${JSON.stringify(item)}`);
-        }
-        return [`${key},${JSON.stringify(value)}`];
-      })
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `personal-report-${reportType}-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    const { downloadReportCsv } = await import('../utils/downloadReportCsv');
+    const data = reportData.data;
+    const range = reportData.filters?.dateRange || {};
+    const selectedProjectIdForReport = reportData.filters?.selectedProjectId;
+    const reportProjects = (projects || []).filter((project) =>
+      !selectedProjectIdForReport || String(project._id) === String(selectedProjectIdForReport)
+    );
+    const selectedProject = reportProjects[0];
+    const fileDate = new Date().toISOString().slice(0, 10);
+    downloadReportCsv({
+      title: canViewTeamAnalytics ? 'ProManage - Team Analytics Report' : 'ProManage - Personal Performance Report',
+      filename: `${canViewTeamAnalytics ? 'team-analytics' : 'personal-report'}-${reportData.type}-${fileDate}.csv`,
+      metadata: [
+        [canViewTeamAnalytics ? 'Manager' : 'Member', user?.name || 'Member'],
+        ['Report period', reportData.type],
+        ['Project', selectedProject?.title || (canViewTeamAnalytics ? 'All company projects' : 'All assigned projects')],
+        ['Date range', range.start || range.end ? `${range.start || 'Start'} to ${range.end || 'Present'}` : 'All dates'],
+        ['Generated', new Date(reportData.generatedAt || Date.now()).toLocaleString()],
+      ],
+      sections: [
+        {
+          title: 'Summary',
+          headers: ['Metric', 'Value'],
+          rows: [
+            ['Total projects', reportProjects.length],
+            ['Total tasks', data.totalTasks],
+            ['Completed tasks', data.completedTasks],
+            ['Overdue tasks', data.overdueTasks],
+            ['Completion rate', `${data.completionRate || 0}%`],
+          ],
+        },
+        {
+          title: 'Projects in report',
+          headers: ['Project', 'Status', 'Due date'],
+          rows: reportProjects.map((project) => [project.title, project.status || 'Active', project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No deadline']),
+        },
+        {
+          title: 'Task status breakdown',
+          headers: ['Status', 'Tasks'],
+          rows: (data.statusBreakdown || []).map((status) => [status.name, status.value]),
+        },
+        {
+          title: 'Team task summary',
+          headers: ['Team member', 'Total tasks', 'Completed'],
+          rows: (data.teamPerformance || []).map((member) => [member.name, member.total, member.completed]),
+        },
+        {
+          title: 'Weekly trends',
+          headers: ['Week', 'Total tasks', 'Completed tasks'],
+          rows: (data.trends || []).map((trend) => [trend.week, trend.total, trend.completed]),
+        },
+      ],
+    });
   };
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!reportData) return;
     try {
-      // Direct import for Vite/React 19
-      import('jspdf').then(({ jsPDF }) => {
-        const doc = new jsPDF();
-        let y = 20;
-        
-        doc.setFontSize(20);
-        doc.text(`${user?.name || 'User'} - Personal ${reportType} Report`, 20, y);
-        y += 15;
-        
-        doc.setFontSize(12);
-        doc.text(`Generated by: ${user?.name || 'User'} | ${new Date().toLocaleDateString()}`, 20, y);
-        y += 10;
-        
-        if (reportData.filters.selectedProjectId) {
-          const project = projects.find(p => p._id === reportData.filters.selectedProjectId);
-          doc.text(`Project: ${project?.title || 'All Projects'}`, 20, y);
-          y += 10;
-        }
-        
-        y += 10;
-        doc.text('Key Metrics:', 20, y);
-        y += 10;
-        
-        Object.entries(reportData.data).forEach(([key, value]) => {
-          if (typeof value === 'number') {
-            doc.text(`${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: ${value}`, 20, y);
-            y += 8;
-          }
-        });
-        
-        if (y > 250) {
-          doc.addPage();
-          y = 20;
-        }
-        
-        doc.save(`personal-report-${reportType}.pdf`);
-        Swal.fire({
-          icon: 'success',
-          title: 'PDF Exported!',
-          text: 'Report saved as PDF.',
-          timer: 2000,
-          showConfirmButton: false
-        });
-      }).catch((error) => {
-        console.error('PDF export error:', error);
-        Swal.fire({
-          icon: 'warning',
-          title: 'PDF Export',
-          text: 'PDF failed. CSV export works perfectly!',
-          confirmButtonColor: '#10b981'
-        });
+      const { generateReportPdf } = await import('../utils/generateReportPdf');
+      const data = reportData.data;
+      const range = reportData.filters?.dateRange || {};
+      const selectedProjectIdForReport = reportData.filters?.selectedProjectId;
+      const reportProjects = (projects || []).filter((project) =>
+        !selectedProjectIdForReport || String(project._id) === String(selectedProjectIdForReport)
+      );
+      const selectedProject = reportProjects[0];
+      const scope = selectedProject?.title || (canViewTeamAnalytics ? 'All company projects' : 'All assigned projects');
+      const dateLabel = range.start || range.end
+        ? `${range.start || 'Start'} to ${range.end || 'Present'}`
+        : `${reportData.type} report`;
+      const fileDate = new Date().toISOString().slice(0, 10);
+
+      generateReportPdf({
+        title: canViewTeamAnalytics ? 'Team Analytics Report' : 'Personal Performance Report',
+        subtitle: `${user?.name || 'Member'}  ·  ${scope}  ·  ${dateLabel}`,
+        reportType: reportData.type,
+        generatedAt: reportData.generatedAt,
+        dateRange: range,
+        filename: `${canViewTeamAnalytics ? 'team-analytics' : 'personal-report'}-${reportData.type}-${fileDate}.pdf`,
+        metrics: [
+          { label: 'Projects', value: reportProjects.length },
+          { label: 'Tasks', value: data.totalTasks },
+          { label: 'Completed', value: data.completedTasks },
+          { label: 'Overdue', value: data.overdueTasks },
+          { label: 'Completion rate', value: `${data.completionRate || 0}%` },
+        ],
+        sections: [
+          {
+            title: 'Projects in report',
+            headers: ['Project', 'Status', 'Due date'],
+            widths: [82, 48, 52],
+            rows: reportProjects.map((project) => [project.title, project.status || 'Active', project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No deadline']),
+          },
+          {
+            title: 'Task status breakdown',
+            headers: ['Status', 'Tasks'],
+            widths: [91, 91],
+            rows: (data.statusBreakdown || []).map((status) => [status.name, status.value]),
+          },
+          {
+            title: 'Team task summary',
+            headers: ['Team member', 'Tasks', 'Completed'],
+            widths: [82, 50, 50],
+            rows: (data.teamPerformance || []).map((member) => [member.name, member.total, member.completed]),
+          },
+          {
+            title: 'Weekly trends',
+            headers: ['Period', 'Tasks', 'Completed'],
+            widths: [72, 55, 55],
+            rows: (data.trends || []).map((trend) => [trend.week, trend.total, trend.completed]),
+          },
+        ],
+      });
+      Swal.fire({
+        icon: 'success',
+        title: 'PDF exported',
+        text: 'Your report has been saved as a PDF.',
+        timer: 2000,
+        showConfirmButton: false,
+        confirmButtonColor: '#3d7650'
       });
     } catch (error) {
       console.error('PDF export error:', error);
       Swal.fire({
-        icon: 'warning',
-        title: 'PDF Export',
-        text: 'CSV export works perfectly!',
-        confirmButtonColor: '#10b981'
+        icon: 'error',
+        title: 'PDF export failed',
+        text: 'Please try again or use CSV export.',
+        confirmButtonColor: '#3d7650'
       });
     }
   };
@@ -430,7 +463,10 @@ const MemberDashboard = () => {
     setUpdatingTaskId(taskId);
     try {
       await dispatch(updateTaskStatus({ taskId, status: newStatus })).unwrap();
-      // No need to refresh tasks since the state is updated optimistically
+      await Promise.all([
+        dispatch(fetchTasksAssignedToUser()),
+        dispatch(fetchAllTasks()),
+      ]);
       Swal.fire({
         icon: 'success',
         title: 'Status Updated!',
@@ -452,39 +488,125 @@ const MemberDashboard = () => {
     }
   };
 
+  const handleManagerProjectCreate = async (event) => {
+    event.preventDefault();
+    try {
+      await dispatch(createProject(managerProject)).unwrap();
+      setManagerProject({ title: '', description: '', deadline: '' });
+      await dispatch(fetchProjects()).unwrap();
+      Swal.fire({
+        icon: 'success',
+        title: 'Project created',
+        text: 'The project is ready for your team.',
+        confirmButtonColor: '#3d7650'
+      });
+    } catch (projectError) {
+      console.error('Manager project creation error:', projectError);
+      Swal.fire({
+        icon: 'error',
+        title: 'Project creation failed',
+        text: projectError?.message || 'Unable to create the project. Please try again.',
+        confirmButtonColor: '#3d7650'
+      });
+    }
+  };
+
+  const handleManagerTaskAssignment = async (event) => {
+    event.preventDefault();
+    try {
+      await dispatch(assignTask({ taskId: managerTaskId, userId: managerAssigneeId })).unwrap();
+      await Promise.all([
+        dispatch(fetchAllTasks()).unwrap(),
+        dispatch(fetchTasksAssignedToUser()).unwrap()
+      ]);
+      setManagerTaskId('');
+      setManagerAssigneeId('');
+      Swal.fire({
+        icon: 'success',
+        title: 'Task assigned',
+        text: 'The selected team member has been assigned the task.',
+        confirmButtonColor: '#3d7650'
+      });
+    } catch (assignmentError) {
+      console.error('Manager task assignment error:', assignmentError);
+      Swal.fire({
+        icon: 'error',
+        title: 'Task assignment failed',
+        text: assignmentError?.message || 'Unable to assign the task. Please try again.',
+        confirmButtonColor: '#3d7650'
+      });
+    }
+  };
+
+  const handleManagerTaskCreate = async (event) => {
+    event.preventDefault();
+    try {
+      await dispatch(createTask(managerNewTask)).unwrap();
+      setManagerNewTask({
+        title: '',
+        description: '',
+        projectId: '',
+        assignedTo: '',
+        dueDate: '',
+        priority: 'Medium',
+        estimatedHours: 0,
+        dependencies: []
+      });
+      await dispatch(fetchAllTasks()).unwrap();
+      Swal.fire({
+        icon: 'success',
+        title: 'Task created',
+        text: 'The task has been added to the selected project.',
+        confirmButtonColor: '#3d7650'
+      });
+    } catch (taskError) {
+      console.error('Manager task creation error:', taskError);
+      Swal.fire({
+        icon: 'error',
+        title: 'Task creation failed',
+        text: taskError?.message || 'Unable to create the task. Please try again.',
+        confirmButtonColor: '#3d7650'
+      });
+    }
+  };
+
   const memberSectionConfig = [
-    { id: 'projects', icon: 'fa-project-diagram', label: 'Projects', color: 'from-emerald-400 to-teal-500' },
-    { id: 'tasks', icon: 'fa-tasks', label: 'My Tasks', color: 'from-blue-400 to-indigo-500' },
-    { id: 'calendar', icon: 'fa-calendar-alt', label: 'Calendar', color: 'from-purple-400 to-pink-500' },
-    { id: 'reports', icon: 'fa-chart-line', label: 'Reports', color: 'from-orange-400 to-red-500' },
-    { id: 'chat', icon: 'fa-comments', label: 'Project Chat', color: 'from-teal-400 to-cyan-500' },
-    { id: 'sticky-notes', icon: 'fa-sticky-note', label: 'Sticky Notes', color: 'from-amber-400 to-yellow-500' }
+    { id: 'projects', icon: FaProjectDiagram, label: 'Projects', color: 'from-emerald-400 to-teal-500' },
+    { id: 'tasks', icon: FaTasks, label: 'My Tasks', color: 'from-blue-400 to-indigo-500' },
+    { id: 'calendar', icon: FaCalendarAlt, label: 'Calendar', color: 'from-purple-400 to-pink-500' },
+    { id: 'reports', icon: FaChartLine, label: canViewTeamAnalytics ? 'Team Analytics' : 'Reports', color: 'from-orange-400 to-red-500' },
+    { id: 'chat', icon: FaComments, label: 'Project Chat', color: 'from-teal-400 to-cyan-500' },
+    { id: 'sticky-notes', icon: FaStickyNote, label: 'Sticky Notes', color: 'from-amber-400 to-yellow-500' },
+    ...(canCreateManagerProjects ? [{ id: 'manager-projects', icon: FaProjectDiagram, label: 'Create Project', color: 'from-emerald-400 to-teal-500' }] : []),
+    ...(canAssignManagerTasks ? [
+      { id: 'manager-create-task', icon: FaTasks, label: 'Create Task', color: 'from-emerald-400 to-teal-500' },
+      { id: 'manager-assignments', icon: FaTasks, label: 'Assign Tasks', color: 'from-emerald-400 to-teal-500' }
+    ] : [])
   ];
 
   return (
-    <div className="relative flex min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 text-gray-800">
+    <div className="member-dashboard relative flex min-h-screen text-gray-800">
 
       {/* Sidebar Navigation */}
-      <aside className="hidden min-h-screen w-64 shrink-0 border-r border-slate-700 bg-slate-900 text-white lg:block">
+      <aside className="member-sidebar hidden min-h-screen w-64 shrink-0 text-white lg:block">
 
-        <div className="border-b border-slate-700 p-8">
-          <h2 className="text-3xl font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-500 bg-clip-text text-transparent">ProManage</h2>
+        <div className="member-brand border-b p-7">
+          <h2 className="text-2xl font-bold tracking-tight text-white">ProManage<span className="text-emerald-400">.</span></h2>
+          <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Workspace</p>
         </div>
         <nav className="mt-8">
           <ul className="space-y-1">
-            {memberSectionConfig.map(({ id, icon, label, color }) => (
+            {memberSectionConfig.map(({ id, icon: Icon, label, color }) => (
               <li key={id}>
                 <div 
-                  className={`mx-4 flex cursor-pointer items-center rounded-r-2xl px-8 py-4 transition-colors duration-200 ${
+                  className={`member-nav-item mx-3 flex cursor-pointer items-center rounded-xl px-4 py-3 transition-colors duration-200 ${
                     activeSection === id ? `bg-gradient-to-r ${color} text-white` : 'text-slate-300 hover:bg-white/10 hover:text-white'
                   }`}
                   onClick={() => setActiveSection(id)}
                 >
-                  <i className={`fas ${icon} mr-4 text-xl ${activeSection === id ? 'text-white' : 'text-slate-400'}`}></i>
+                  <Icon className="member-nav-icon" aria-hidden="true" />
                   <span className="font-semibold">{label}</span>
-                  {activeSection === id && (
-                    <div className="ml-auto h-3 w-3 rounded-full bg-emerald-400"></div>
-                  )}
+                  <FaChevronRight className="member-nav-chevron" aria-hidden="true" />
                 </div>
               </li>
             ))}
@@ -494,18 +616,18 @@ const MemberDashboard = () => {
 
 
       {/* Main Content */}
-      <div className="flex min-w-0 flex-1 flex-col bg-blue-50">
+      <div className="member-content flex min-w-0 flex-1 flex-col">
         {/* Header/Navbar */}
-        <header className="flex flex-col gap-4 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:py-6">
+        <header className="member-header flex flex-col gap-4 border-b px-4 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:py-5">
 
           <div className="flex items-center space-x-3">
             <div className="h-12 w-12 rounded-2xl border border-slate-200 bg-white p-1">
               <img src={`https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=linear-gradient(135deg,%233b82f6,%239935f1)&color=fff&size=128&rounded=true`} alt="Avatar" className="h-full w-full rounded-xl object-cover" />
             </div>
             <div>
-              <h1 className="text-2xl font-black gradient-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">Member Dashboard</h1>
+              <h1 className="text-xl font-semibold tracking-tight text-slate-900">Member dashboard</h1>
               {user?.role && (
-                <span className="mt-1 inline-block rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 px-3 py-1 text-sm font-bold text-white">
+                <span className="member-role mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-semibold">
                   {user.role.name}
                 </span>
               )}
@@ -529,73 +651,17 @@ const MemberDashboard = () => {
             </button>
 
             <div className="relative">
-              <button
-                onClick={() => setShowProjectNotifications((prev) => !prev)}
-                className="group relative flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                <FaBell className="text-2xl" />
-                {notificationItems.length > 0 && (
-                  <span className="absolute -top-2 -right-2 flex h-7 min-w-7 items-center justify-center rounded-2xl border-4 border-white/60 bg-gradient-to-r from-orange-400 via-amber-500 to-yellow-500 text-xs font-black text-slate-900 shadow-2xl ring-2 ring-amber-300/50 animate-bounce">
-                    {notificationItems.length > 99 ? '99+' : notificationItems.length}
-                  </span>
-                )}
-              </button>
-
-
-              {showProjectNotifications && (
-                <div className="absolute right-0 top-10 z-50 w-96 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                  <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
-                    <h3 className="text-sm font-semibold text-slate-900">Project Notifications</h3>
-                    <p className="mt-1 text-xs text-slate-500">Deadlines, overdue work, and project updates.</p>
-                  </div>
-
-                  <div className="max-h-[420px] overflow-y-auto">
-                    {notificationItems.length === 0 ? (
-                      <div className="px-4 py-6 text-center text-sm text-slate-500">
-                        No urgent project updates right now.
-                      </div>
-                    ) : (
-                      notificationItems.map((item) => (
-                        <div key={item.id} className="flex items-start gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0">
-                          <div className={`mt-1 h-2.5 w-2.5 rounded-full ${
-                            item.accent === 'red'
-                              ? 'bg-red-500'
-                              : item.accent === 'amber'
-                                ? 'bg-amber-500'
-                                : 'bg-blue-500'
-                          }`}></div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-slate-800">{item.title}</p>
-                            <p className="mt-1 text-xs text-slate-500">{item.subtitle}</p>
-                          </div>
-                          <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                            item.accent === 'red'
-                              ? 'bg-red-50 text-red-700'
-                              : item.accent === 'amber'
-                                ? 'bg-amber-50 text-amber-700'
-                                : 'bg-blue-50 text-blue-700'
-                          }`}>
-                            {item.type}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="relative">
               <div className="flex items-center gap-3">
                 <button className="text-gray-600 hover:text-gray-800 flex items-center">
-                  <i className="fas fa-user-circle text-xl mr-2"></i>
+                  <FaUserCircle className="mr-2 text-lg" aria-hidden="true" />
                   {user?.name}
-                  <i className="fas fa-chevron-down ml-2"></i>
+                  <FaChevronDown className="ml-2 text-xs" aria-hidden="true" />
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="animate-card-float rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 px-6 py-3 text-sm font-black text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 border border-rose-400/50"
+                  className="member-logout-button rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 px-6 py-3 text-sm font-semibold text-white transition-colors duration-200"
                 >
-                  <i className="fas fa-sign-out-alt mr-2"></i>Logout
+                  <FaSignOutAlt className="mr-2" aria-hidden="true" />Logout
                 </button>
 
               </div>
@@ -607,9 +673,9 @@ const MemberDashboard = () => {
           </div>
         </header>
 
-        <nav className="border-b border-slate-200 bg-white/90 px-4 py-3 lg:hidden">
+        <nav className="member-mobile-nav border-b px-4 py-3 lg:hidden">
           <div className="flex gap-3 overflow-x-auto pb-1 custom-scroll">
-            {memberSectionConfig.map(({ id, icon, label, color }) => (
+            {memberSectionConfig.map(({ id, icon: Icon, label, color }) => (
               <button
                 key={id}
                 type="button"
@@ -618,7 +684,7 @@ const MemberDashboard = () => {
                   activeSection === id ? `bg-gradient-to-r ${color}` : 'bg-slate-800'
                 }`}
               >
-                <i className={`fas ${icon}`}></i>
+                <Icon aria-hidden="true" />
                 {label}
               </button>
             ))}
@@ -626,7 +692,7 @@ const MemberDashboard = () => {
         </nav>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6">
+        <main className="member-main flex-1 p-4 sm:p-7 lg:p-9">
           {activeSection === 'projects' && (
             <div className="space-y-8">
               {/* Hero Banner */}
@@ -692,6 +758,194 @@ const MemberDashboard = () => {
             </div>
           )}
 
+          {activeSection === 'manager-projects' && canCreateManagerProjects && (
+            <section className="animate-fadeIn">
+              <div className="mb-6">
+                <h2 className="text-3xl font-bold text-gray-800">Create a project</h2>
+                <p className="mt-2 text-gray-600">Set up a new project for your company team.</p>
+              </div>
+              <form onSubmit={handleManagerProjectCreate} className="member-manager-panel">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <label className="member-manager-field">
+                    <span>Project name</span>
+                    <input
+                      type="text"
+                      value={managerProject.title}
+                      onChange={(event) => setManagerProject({ ...managerProject, title: event.target.value })}
+                      placeholder="e.g. Website redesign"
+                      required
+                    />
+                  </label>
+                  <label className="member-manager-field">
+                    <span>Project deadline</span>
+                    <input
+                      type="date"
+                      value={managerProject.deadline}
+                      onChange={(event) => setManagerProject({ ...managerProject, deadline: event.target.value })}
+                      required
+                    />
+                  </label>
+                  <label className="member-manager-field md:col-span-2">
+                    <span>Description</span>
+                    <textarea
+                      value={managerProject.description}
+                      onChange={(event) => setManagerProject({ ...managerProject, description: event.target.value })}
+                      placeholder="What does the team need to deliver?"
+                      rows="4"
+                      required
+                    />
+                  </label>
+                </div>
+                <button type="submit" className="member-manager-primary mt-5">
+                  Create project
+                </button>
+              </form>
+            </section>
+          )}
+
+          {activeSection === 'manager-create-task' && canAssignManagerTasks && (
+            <section className="animate-fadeIn">
+              <div className="mb-6">
+                <h2 className="text-3xl font-bold text-gray-800">Create a task</h2>
+                <p className="mt-2 text-gray-600">Add a task to a project and optionally assign it to a team member.</p>
+              </div>
+              <form onSubmit={handleManagerTaskCreate} className="member-manager-panel">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <label className="member-manager-field">
+                    <span>Task title</span>
+                    <input
+                      type="text"
+                      value={managerNewTask.title}
+                      onChange={(event) => setManagerNewTask({ ...managerNewTask, title: event.target.value })}
+                      placeholder="e.g. Review the landing page"
+                      required
+                    />
+                  </label>
+                  <label className="member-manager-field">
+                    <span>Project</span>
+                    <select
+                      value={managerNewTask.projectId}
+                      onChange={(event) => setManagerNewTask({ ...managerNewTask, projectId: event.target.value })}
+                      required
+                    >
+                      <option value="">Select a project</option>
+                      {(projects || []).map((project) => (
+                        <option key={project._id} value={project._id}>{project.title}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="member-manager-field">
+                    <span>Assign to (optional)</span>
+                    <select
+                      value={managerNewTask.assignedTo}
+                      onChange={(event) => setManagerNewTask({ ...managerNewTask, assignedTo: event.target.value })}
+                    >
+                      <option value="">Leave unassigned</option>
+                      {(users || []).map((member) => (
+                        <option key={member._id} value={member._id}>{member.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="member-manager-field">
+                    <span>Due date</span>
+                    <input
+                      type="date"
+                      value={managerNewTask.dueDate}
+                      onChange={(event) => setManagerNewTask({ ...managerNewTask, dueDate: event.target.value })}
+                    />
+                  </label>
+                  <label className="member-manager-field">
+                    <span>Priority</span>
+                    <select
+                      value={managerNewTask.priority}
+                      onChange={(event) => setManagerNewTask({ ...managerNewTask, priority: event.target.value })}
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </label>
+                  <label className="member-manager-field">
+                    <span>Estimated hours</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={managerNewTask.estimatedHours}
+                      onChange={(event) => setManagerNewTask({ ...managerNewTask, estimatedHours: Number(event.target.value) })}
+                    />
+                  </label>
+                  <label className="member-manager-field md:col-span-2">
+                    <span>Description</span>
+                    <textarea
+                      value={managerNewTask.description}
+                      onChange={(event) => setManagerNewTask({ ...managerNewTask, description: event.target.value })}
+                      placeholder="Describe the task"
+                      rows="4"
+                    />
+                  </label>
+                </div>
+                {projects?.length === 0 && <p className="mt-4 text-sm text-gray-600">Create a project before adding tasks.</p>}
+                <button type="submit" className="member-manager-primary mt-5" disabled={!projects?.length}>
+                  Create task
+                </button>
+              </form>
+            </section>
+          )}
+
+          {activeSection === 'manager-assignments' && canAssignManagerTasks && (
+            <section className="animate-fadeIn">
+              <div className="mb-6">
+                <h2 className="text-3xl font-bold text-gray-800">Assign a task</h2>
+                <p className="mt-2 text-gray-600">Choose a company task and assign it to a team member.</p>
+              </div>
+              <form onSubmit={handleManagerTaskAssignment} className="member-manager-panel">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <label className="member-manager-field">
+                    <span>Task</span>
+                    <select value={managerTaskId} onChange={(event) => setManagerTaskId(event.target.value)} required>
+                      <option value="">Select a task</option>
+                      {unassignedTasks.map((task) => (
+                        <option key={task._id} value={task._id}>
+                          {task.title}{task.projectId?.title ? ` — ${task.projectId.title}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="member-manager-field">
+                    <span>Assign to</span>
+                    <select value={managerAssigneeId} onChange={(event) => setManagerAssigneeId(event.target.value)} required>
+                      <option value="">Select a team member</option>
+                      {(users || []).filter((member) => String(member._id) !== String(user?._id)).map((member) => (
+                        <option key={member._id} value={member._id}>{member.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {unassignedTasks.length === 0 && <p className="mt-4 text-sm text-gray-600">There are no unassigned company tasks available.</p>}
+                <button
+                  type="submit"
+                  className="member-manager-primary mt-5"
+                  disabled={!managerTaskId || !managerAssigneeId || unassignedTasks.length === 0}
+                >
+                  Assign task
+                </button>
+              </form>
+              <div className="member-manager-panel mt-6">
+                <h3 className="mb-4 text-lg font-semibold text-gray-800">Company task assignments</h3>
+                <div className="divide-y divide-gray-100">
+                  {(allTasks || []).map((task) => (
+                    <div key={task._id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="font-medium text-gray-800">{task.title}</span>
+                      <span className="text-sm text-gray-600">
+                        {task.assignedTo?.name || 'Unassigned'}{task.projectId?.title ? ` · ${task.projectId.title}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                  {!allTasks?.length && <p className="py-3 text-sm text-gray-600">No tasks to display.</p>}
+                </div>
+              </div>
+            </section>
+          )}
 
           {activeSection === 'tasks' && (
             <div className="animate-fadeIn">
@@ -803,8 +1057,10 @@ const MemberDashboard = () => {
                     onChange={(e) => setSelectedProjectId(e.target.value)}
                     className="w-full md:w-80 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white shadow-sm"
                   >
-                    <option value="">All Company Tasks</option>
-                    {projects && projects.map((project) => (
+                    <option value="">
+                      {canViewAllCompanyTasks ? 'All Company Tasks' : 'My Assigned Tasks'}
+                    </option>
+                    {myProjects.map((project) => (
                       <option key={project._id} value={project._id}>
                         {project.title} 
                         {project.company && ` - ${project.company.name}`}
@@ -813,17 +1069,12 @@ const MemberDashboard = () => {
                   </select>
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-4">Project Progress</h3>
-                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-                  After updating task status, kindly logout and login again to see the updated Kanban status.
-                </div>
                 <div className="max-w-full overflow-x-auto custom-scroll pb-2">
                   <KanbanBoard 
                     tasks={
-                      selectedProjectId 
-                        ? (allTasks || []).filter(task => 
-                            task.projectId && (task.projectId._id || task.projectId) === selectedProjectId
-                          )
-                        : allTasks || []
+                      selectedProjectId
+                        ? (allTasks || []).filter(task => getTaskProjectId(task) === String(selectedProjectId))
+                        : canViewAllCompanyTasks ? (allTasks || []) : myTasks
                     } 
                     users={users} 
                     showUserStatusSummary={false} 
@@ -897,7 +1148,6 @@ const MemberDashboard = () => {
               </div>
             </div>
           )}
-
           {activeSection === 'calendar' && (
             <div className="animate-fadeIn">
               {/* Hero Section */}
@@ -1175,7 +1425,9 @@ const MemberDashboard = () => {
                   Select a project and chat only with the members of that project.
                 </p>
               </div>
-              <ProjectChatPanel projects={myProjects} user={user} onSeenMessages={refreshUnreadChatCount} />
+              <div className="member-chat">
+                <ProjectChatPanel projects={myProjects} user={user} onSeenMessages={refreshUnreadChatCount} />
+              </div>
             </div>
           )}
           {activeSection === 'reports' && (
@@ -1188,9 +1440,13 @@ const MemberDashboard = () => {
                 </div>
                 <h2 className="mb-4 flex items-center text-3xl font-black tracking-tight md:text-4xl">
                   <i className="fas fa-chart-bar mr-3 text-3xl text-emerald-300"></i>
-                  Personal Reports & Analytics
+                  {canViewTeamAnalytics ? 'Team Reports & Analytics' : 'Personal Reports & Analytics'}
                 </h2>
-                <p className="max-w-2xl text-lg text-slate-200">Track your productivity, project performance, and team contribution</p>
+                <p className="max-w-2xl text-lg text-slate-200">
+                  {canViewTeamAnalytics
+                    ? 'Review company-wide project progress, team task completion, and workload.'
+                    : 'Track your productivity, project performance, and team contribution'}
+                </p>
               </div>
 
               {/* Floating Reports Controls */}
@@ -1215,7 +1471,7 @@ const MemberDashboard = () => {
                       onChange={(e) => setSelectedProjectId(e.target.value)}
                       className="w-full px-5 py-4 glass backdrop-blur-md rounded-2xl border-2 border-white/50 focus:border-emerald-400/80 focus:outline-none focus:ring-4 focus:ring-emerald-400/30 shadow-2xl hover:shadow-3xl transition-all duration-400 font-semibold text-slate-800"
                     >
-                      <option value="">🌐 All My Projects</option>
+                      <option value="">{canViewTeamAnalytics ? '🌐 All Company Projects' : '🌐 All My Projects'}</option>
                       {projects.map(project => (
                         <option key={project._id} value={project._id}>
                           {project.title}
@@ -1248,7 +1504,7 @@ const MemberDashboard = () => {
               {reportData ? (
                 <div className="space-y-8">
                   {/* KPI Flip Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="member-report-kpis grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="relative h-40 w-full overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm">
                       <div className="flip-card-front absolute inset-0 p-6 flex flex-col justify-center items-center text-center bg-gradient-to-br from-blue-500/90 to-blue-600/90 text-white">
                         <div className="w-14 h-14 glass backdrop-blur-md rounded-2xl flex items-center justify-center mb-3 shadow-xl">

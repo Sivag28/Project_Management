@@ -1,0 +1,73 @@
+.admin-dashboard.admin-dashboard {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-dashboard.admin-dashboard > div.hidden {
+  position: relative;
+  top: auto;
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
+  flex: 0 0 16rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-dashboard.admin-dashboard > div.flex-1 {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-dashboard.admin-dashboard > div.flex-1 > header {
+  position: relative;
+  top: auto;
+  z-index: 20;
+  flex: 0 0 auto;
+}
+
+.admin-dashboard.admin-dashboard > div.flex-1 > nav {
+  position: relative;
+  top: auto;
+  z-index: 15;
+  flex: 0 0 auto;
+}
+
+.admin-dashboard.admin-dashboard > div.flex-1 > main {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.admin-dashboard.admin-dashboard > div.flex-1 > footer {
+  position: relative;
+  z-index: 10;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1023px) {
+  .admin-dashboard.admin-dashboard > div.hidden {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-dashboard.admin-dashboard > div.flex-1 > header,
+  .admin-dashboard.admin-dashboard > div.flex-1 > nav {
+    position: relative;
+  }
+
+  .admin-dashboard.admin-dashboard > div.flex-1 > main {
+    scrollbar-gutter: auto;
+  }
+}

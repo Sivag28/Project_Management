@@ -1,6 +1,8 @@
 import Project from "../models/Project.js";
 import Task from "../models/Task.js";
+import ActivityLog from "../models/ActivityLog.js";
 import { managerOnly } from "../middleware/roleMiddleware.js";
+import { notifyProjectParticipants } from "../utils/projectNotifications.js";
 
 const getCompanyId = (user) => user?.company?._id || user?.company;
 
@@ -15,6 +17,15 @@ export const createProject = async (req, res) => {
     owner: req.user._id,
     company: companyId,
     members: req.body.assignedMembers ? [req.user._id, ...req.body.assignedMembers] : [req.user._id]
+  });
+  await ActivityLog.create({ action: `Created project: ${project.title}`, user: req.user._id });
+  await notifyProjectParticipants({
+    companyId,
+    actorId: req.user._id,
+    projectId: project._id,
+    message: `${req.user.name} created project "${project.title}"`,
+    type: "action",
+    io: req.app.get("io"),
   });
   res.json(project);
 };

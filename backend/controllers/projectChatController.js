@@ -1,6 +1,7 @@
 import Project from "../models/Project.js";
 import ProjectMessage from "../models/ProjectMessage.js";
 import Task from "../models/Task.js";
+import { notifyProjectParticipants } from "../utils/projectNotifications.js";
 
 const hasProjectAccess = async (project, userId, roleName) => {
   if (!project) return false;
@@ -54,7 +55,10 @@ const getProjectMessages = async (req, res) => {
 
 const sendProjectMessage = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.projectId)
+    const companyId = req.user?.company?._id || req.user?.company;
+    if (!companyId) return res.status(400).json({ message: "User company is required" });
+
+    const project = await Project.findOne({ _id: req.params.projectId, company: companyId })
       .select("owner members title")
       .populate("members", "_id name email");
 
@@ -74,6 +78,14 @@ const sendProjectMessage = async (req, res) => {
     });
 
     const populatedMessage = await ProjectMessage.findById(message._id).populate("sender", "name email");
+    await notifyProjectParticipants({
+      companyId,
+      actorId: req.user._id,
+      projectId: project._id,
+      message: `${req.user.name} sent a message in ${project.title}`,
+      type: "chat",
+      io: req.app.get("io"),
+    });
     const assignedTaskUsers = await Task.find({ projectId: project._id }).distinct("assignedTo");
     const recipientIds = [
       project.owner?.toString(),

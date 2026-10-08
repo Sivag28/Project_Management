@@ -12,12 +12,12 @@ const Navbar = () => {
   const handleBellClick = () => {
     setShowNotifications(!showNotifications);
     if (!showNotifications) {
-      dispatch(fetchNotifications());
+      dispatch(fetchNotifications(user?._id));
     }
   };
 
   const handleMarkAllRead = () => {
-    dispatch(markAllNotificationsAsRead());
+    dispatch(markAllNotificationsAsRead(user?._id));
   };
 
   return (

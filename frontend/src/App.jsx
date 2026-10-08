@@ -1,8 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { io } from "socket.io-client";
-import { addRealTimeNotification } from "./redux/notificationSlice";
+import { addRealTimeNotification, fetchNotifications } from "./redux/notificationSlice";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -14,7 +14,7 @@ import ProjectDetails from "./pages/ProjectDetails";
 const App = () => {
   const token = localStorage.getItem("token");
   const dispatch = useDispatch();
-
+  const currentUserId = useSelector((state) => state.auth.user?._id);
   useEffect(() => {
     if (token) {
       // Set up socket connection for notifications and tasks
@@ -26,6 +26,7 @@ const App = () => {
 
       socket.on('connect', () => {
         console.log('Connected to server');
+        dispatch(fetchNotifications(currentUserId));
       });
 
       socket.on('disconnect', () => {
@@ -34,7 +35,9 @@ const App = () => {
 
       // Listen for real-time notifications
       socket.on('newNotification', (notification) => {
-        dispatch(addRealTimeNotification(notification));
+        if (String(notification.user?._id || notification.user) === String(currentUserId)) {
+          dispatch(addRealTimeNotification(notification));
+        }
       });
 
       // Store socket instance globally for use in components
@@ -44,7 +47,7 @@ const App = () => {
         socket.disconnect();
       };
     }
-  }, [token, dispatch]);
+  }, [token, dispatch, currentUserId]);
 
   return (
     <>

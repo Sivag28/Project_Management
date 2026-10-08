@@ -3,10 +3,12 @@ import { useDispatch } from "react-redux";
 import { register } from "../redux/authSlice";
 import { useNavigate, Link } from "react-router-dom";
 import Swal from "sweetalert2";
-import { FaUser, FaEnvelope, FaLock, FaUserShield, FaUserPlus } from "react-icons/fa";
+import { FaUser, FaEnvelope, FaLock, FaUserShield, FaUserPlus, FaCheckCircle, FaSpinner } from "react-icons/fa";
+import AuthIllustration from "../components/AuthIllustration";
 
 const Signup = () => {
   const [formData, setFormData] = useState({ name: "", email: "", password: "", companyName: "", role: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -16,6 +18,8 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const result = await dispatch(register(formData)).unwrap();
       Swal.fire("Success", "Account created successfully!", "success").then(() => {
@@ -29,32 +33,22 @@ const Signup = () => {
     } catch (error) {
       const message = error.response?.data?.message || error.message || "Registration failed";
       Swal.fire("Error", message, "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-32 h-32 bg-white/10 rounded-full animate-bounce"></div>
-        <div className="absolute top-60 right-32 w-24 h-24 bg-white/10 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-32 left-1/3 w-20 h-20 bg-white/10 rounded-full animate-bounce"></div>
-        <div className="absolute bottom-20 right-20 w-28 h-28 bg-white/10 rounded-full animate-pulse"></div>
-        <div className="absolute top-1/2 left-10 w-16 h-16 bg-white/10 rounded-full animate-bounce"></div>
-      </div>
-
-      <div className="relative z-10 w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full mb-4">
-            <FaUserPlus className="text-white text-2xl" />
+    <div className="auth-page auth-signup min-h-screen flex items-center justify-center relative overflow-hidden">
+      <div className="auth-layout auth-layout-signup">
+        <div className="auth-form-column">
+          <div className="auth-heading">
+            <div className="auth-heading-icon"><FaUserPlus /></div>
+            <h1>Create your account</h1>
+            <p>Set up your workspace and bring your team together</p>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Join Us</h1>
-          <p className="text-white/80">Create your account and get started</p>
-        </div>
 
-        {/* Signup Form */}
-        <form onSubmit={handleSubmit} className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/20">
+          <form onSubmit={handleSubmit} className="auth-form">
           <div className="space-y-6">
             {/* Name Input */}
             <div className="relative">
@@ -142,30 +136,44 @@ const Signup = () => {
             {/* Signup Button */}
             <button
               type="submit"
-              className="w-full bg-white text-emerald-600 py-3 rounded-lg font-semibold hover:bg-white/90 transform hover:scale-105 transition-all duration-300 shadow-lg"
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
+              className="auth-submit w-full bg-white text-emerald-600 py-3 rounded-lg font-semibold hover:bg-white/90 transform hover:scale-105 transition-all duration-300 shadow-lg"
             >
-              Create Account
+              {isSubmitting ? (
+                <><FaSpinner className="mr-2 inline-block animate-spin" aria-hidden="true" />Creating account…</>
+              ) : "Create Account"}
             </button>
           </div>
 
-          {/* Login Link */}
-          <div className="mt-6 text-center">
-            <p className="text-white/80">
+          <div className="auth-form-footer">
+            <p>
               Already have an account?{" "}
               <Link
                 to="/login"
-                className="text-white font-semibold hover:text-white/80 underline decoration-2 underline-offset-2 transition-all duration-300"
+                className="font-semibold"
               >
-                Sign in here
+                Sign in
               </Link>
             </p>
           </div>
-        </form>
-
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-white/60 text-sm">Join our community today</p>
+          </form>
         </div>
+
+        <aside className="auth-visual" aria-hidden="true">
+          <div className="auth-visual-brand">ProManage<span>.</span></div>
+          <div className="auth-visual-copy">
+            <span className="auth-visual-eyebrow">MAKE WORK FLOW</span>
+            <h2>Big things start with a team.</h2>
+            <p>Bring projects, people, and progress together in one place.</p>
+          </div>
+          <div className="auth-artwork">
+            <div className="auth-artwork-orbit"></div>
+            <AuthIllustration />
+            <div className="auth-artwork-badge"><FaCheckCircle /><span>Team workspace</span></div>
+          </div>
+          <div className="auth-visual-caption">A clearer way to plan, collaborate, and deliver.</div>
+        </aside>
       </div>
     </div>
   );

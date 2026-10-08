@@ -4,7 +4,7 @@ import { adminOnly, managerOnly } from "../middleware/roleMiddleware.js";
 import { createTask, assignTask, updateTaskStatus, getTasks, getAllTasks, getTasksAssignedToUser, getMemberCompanyTasks } from "../controllers/taskController.js";
 
 const router = express.Router();
-router.post("/", protect, createTask);
+router.post("/", protect, managerOnly, createTask);
 router.put("/assign", protect, managerOnly, assignTask);
 
 // 🔥 PUT STATIC ROUTES FIRST

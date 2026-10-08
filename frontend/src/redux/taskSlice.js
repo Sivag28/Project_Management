@@ -140,10 +140,14 @@ const taskSlice = createSlice({
         state.loading = true;
       })
       .addCase(assignTask.fulfilled, (state, action) => {
-        const task = state.tasks.find(t => t._id === action.meta.arg.taskId);
-        if (task) {
-          task.assignedTo = action.meta.arg.userId;
-        }
+        const updatedTask = action.payload;
+        const taskId = String(action.meta.arg.taskId);
+        [state.tasks, state.allTasks].forEach((items) => {
+          const taskIndex = items.findIndex((task) => String(task._id) === taskId);
+          if (taskIndex !== -1 && updatedTask) {
+            items[taskIndex] = { ...items[taskIndex], ...updatedTask };
+          }
+        });
         state.loading = false;
         state.error = null;
       })
