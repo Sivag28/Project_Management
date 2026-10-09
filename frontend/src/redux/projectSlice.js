@@ -75,7 +75,9 @@ const projectSlice = createSlice({
       })
       .addCase(updateProjectDeadline.fulfilled, (state, action) => {
         state.projects = state.projects.map((project) =>
-          project._id === action.payload._id ? action.payload : project
+          project._id === action.payload._id
+            ? { ...project, deadline: action.payload.deadline }
+            : project
         );
       });
 
