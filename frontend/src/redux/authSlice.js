@@ -7,11 +7,20 @@ export const login = createAsyncThunk("auth/login", async (data) => {
   return res.data.user;
 });
 
-export const register = createAsyncThunk("auth/register", async (data) => {
-  const res = await API.post("/auth/register", data);
-  localStorage.setItem("token", res.data.token);
-  return res.data.user;
-});
+export const register = createAsyncThunk(
+  "auth/register",
+  async (data, { rejectWithValue }) => {
+    try {
+      const res = await API.post("/auth/register", data);
+      localStorage.setItem("token", res.data.token);
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || "Registration failed"
+      );
+    }
+  }
+);
 
 const authSlice = createSlice({
   name: "auth",

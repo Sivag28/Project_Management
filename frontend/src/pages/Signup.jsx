@@ -31,7 +31,7 @@ const Signup = () => {
         }
       });
     } catch (error) {
-      const message = error.response?.data?.message || error.message || "Registration failed";
+      const message = error.payload || error.message || "Registration failed";
       Swal.fire("Error", message, "error");
     } finally {
       setIsSubmitting(false);

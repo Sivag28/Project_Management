@@ -6,11 +6,9 @@ import { generateToken } from "../utils/generateToken.js";
 
 export const register = async (req, res) => {
   try {
-    console.log("Register request body:", req.body);
     const { name, email, password, companyName, role } = req.body;
 
     if (!name || !email || !password || !companyName || !role) {
-      console.log("Missing fields:", { name, email, password, companyName, role });
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -61,7 +59,7 @@ export const register = async (req, res) => {
     const populatedUser = await User.findById(user._id).populate('role').populate('company');
     res.json({ user: populatedUser, token: generateToken(user._id) });
   } catch (error) {
-    console.log("Register error:", error);
+    console.error("Register error:", error);
     res.status(400).json({ message: error.message });
   }
 };
