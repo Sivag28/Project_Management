@@ -29,6 +29,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import "./AdminDashboard.css";
 
+const formatProjectDeadline = (project) => {
+  const deadlineValue = project.deadline || project.dueDate;
+  if (!deadlineValue) return "No deadline";
+
+  const deadline = new Date(deadlineValue);
+  return Number.isNaN(deadline.getTime()) ? "No deadline" : deadline.toLocaleDateString();
+};
+
 const SortableUser = ({ user, isSelected, onToggle }) => {
   const {
     attributes,
@@ -94,7 +102,7 @@ const AdminDashboard = () => {
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
-    dueDate: '',
+    deadline: '',
     assignedMembers: [],
     documents: []
   });
@@ -306,7 +314,7 @@ const AdminDashboard = () => {
         const projectData = {
           title: name,
           description: `Auto-generated project: ${name}`,
-          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+          deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
         };
         const newProject = await dispatch(createProject(projectData)).unwrap();
         createdProjects.push(newProject);
@@ -371,7 +379,7 @@ const AdminDashboard = () => {
     e.preventDefault();
     try {
       await dispatch(createProject(newProject)).unwrap();
-      setNewProject({ title: '', description: '', dueDate: '', assignedMembers: [], documents: [] });
+      setNewProject({ title: '', description: '', deadline: '', assignedMembers: [], documents: [] });
       setShowCreateProjectForm(false);
       dispatch(fetchAllProjects());
       Swal.fire({
@@ -1160,8 +1168,8 @@ const AdminDashboard = () => {
                         <input
                           type="date"
                           placeholder="Select due date"
-                          value={newProject.dueDate}
-                          onChange={(e) => setNewProject({...newProject, dueDate: e.target.value})}
+                          value={newProject.deadline}
+                          onChange={(e) => setNewProject({...newProject, deadline: e.target.value})}
                           className={inputClassName}
                           required
                         />
@@ -1228,7 +1236,7 @@ const AdminDashboard = () => {
                       <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500" style={{ width: `${project.progress || 0}%` }}></div>
                     </div>
                     <div className="mb-4 flex items-center justify-between">
-                      <span className="text-sm text-slate-400">Due: {new Date(project.dueDate).toLocaleDateString()}</span>
+                      <span className="text-sm text-slate-400">Due: {formatProjectDeadline(project)}</span>
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         project.status === 'Completed' ? 'bg-green-600' :
                         project.status === 'In Progress' ? 'bg-blue-600' : 'bg-yellow-600'
