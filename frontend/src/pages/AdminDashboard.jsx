@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchAllProjects, createProject, deleteProject } from "../redux/projectSlice";
+import { fetchAllProjects, createProject, updateProjectDeadline, deleteProject } from "../redux/projectSlice";
 import { fetchAllTasks, createTask, assignTask } from "../redux/taskSlice";
 import { fetchUsers, updateUser } from "../redux/userSlice";
 import API from "../services/api";
@@ -35,6 +35,14 @@ const formatProjectDeadline = (project) => {
 
   const deadline = new Date(deadlineValue);
   return Number.isNaN(deadline.getTime()) ? "No deadline" : deadline.toLocaleDateString();
+};
+
+const getProjectDeadlineInputValue = (project) => {
+  const deadlineValue = project.deadline || project.dueDate;
+  if (!deadlineValue) return "";
+
+  const deadline = new Date(deadlineValue);
+  return Number.isNaN(deadline.getTime()) ? "" : deadline.toISOString().slice(0, 10);
 };
 
 const SortableUser = ({ user, isSelected, onToggle }) => {
@@ -99,6 +107,8 @@ const AdminDashboard = () => {
 
   // Project Management State
   const [showCreateProjectForm, setShowCreateProjectForm] = useState(false);
+  const [editingDeadlineProjectId, setEditingDeadlineProjectId] = useState(null);
+  const [projectDeadlineInput, setProjectDeadlineInput] = useState('');
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
@@ -394,6 +404,29 @@ const AdminDashboard = () => {
         icon: 'error',
         title: 'Project Creation Failed',
         text: 'Failed to create project. Please try again.',
+        confirmButtonColor: '#14b8a6'
+      });
+    }
+  };
+
+  const handleUpdateProjectDeadline = async (e, projectId) => {
+    e.preventDefault();
+    try {
+      await dispatch(updateProjectDeadline({ projectId, deadline: projectDeadlineInput })).unwrap();
+      setEditingDeadlineProjectId(null);
+      setProjectDeadlineInput('');
+      Swal.fire({
+        icon: 'success',
+        title: 'Deadline Updated',
+        text: 'The project deadline has been saved.',
+        confirmButtonColor: '#14b8a6'
+      });
+    } catch (error) {
+      console.error('Update project deadline error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Deadline Update Failed',
+        text: 'Failed to update the project deadline. Please try again.',
         confirmButtonColor: '#14b8a6'
       });
     }
@@ -1235,8 +1268,18 @@ const AdminDashboard = () => {
                     <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-800">
                       <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500" style={{ width: `${project.progress || 0}%` }}></div>
                     </div>
-                    <div className="mb-4 flex items-center justify-between">
+                    <div className="mb-4 flex items-center justify-between gap-3">
                       <span className="text-sm text-slate-400">Due: {formatProjectDeadline(project)}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingDeadlineProjectId(project._id);
+                          setProjectDeadlineInput(getProjectDeadlineInputValue(project));
+                        }}
+                        className="text-sm font-medium text-cyan-300 hover:text-cyan-200"
+                      >
+                        {getProjectDeadlineInputValue(project) ? 'Change' : 'Set deadline'}
+                      </button>
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         project.status === 'Completed' ? 'bg-green-600' :
                         project.status === 'In Progress' ? 'bg-blue-600' : 'bg-yellow-600'
@@ -1244,6 +1287,31 @@ const AdminDashboard = () => {
                         {project.status || 'Active'}
                       </span>
                     </div>
+                    {editingDeadlineProjectId === project._id && (
+                      <form onSubmit={(e) => handleUpdateProjectDeadline(e, project._id)} className="mb-5 flex flex-wrap items-end gap-2">
+                        <label className="flex-1 text-sm text-slate-300">
+                          Project deadline
+                          <input
+                            type="date"
+                            value={projectDeadlineInput}
+                            onChange={(e) => setProjectDeadlineInput(e.target.value)}
+                            className={`${inputClassName} mt-1`}
+                            required
+                          />
+                        </label>
+                        <button type="submit" className={primaryButtonClassName}>Save</button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingDeadlineProjectId(null);
+                            setProjectDeadlineInput('');
+                          }}
+                          className={secondaryButtonClassName}
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    )}
                     <div className="mb-5 flex items-center justify-between text-sm text-slate-400">
                       <span>{project.completedTasks || 0} completed</span>
                       <span>{project.totalTasks || 0} total tasks</span>

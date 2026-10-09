@@ -21,6 +21,11 @@ export const updateProject = createAsyncThunk(
   async ({ projectId, data }) => (await API.put(`/projects/${projectId}`, data)).data
 );
 
+export const updateProjectDeadline = createAsyncThunk(
+  "projects/updateDeadline",
+  async ({ projectId, deadline }) => (await API.put(`/projects/${projectId}/deadline`, { deadline })).data
+);
+
 export const deleteProject = createAsyncThunk(
   "projects/delete",
   async (projectId) => (await API.delete(`/projects/${projectId}`)).data
@@ -67,10 +72,14 @@ const projectSlice = createSlice({
       })
       .addCase(createProject.fulfilled, (state, action) => {
         state.projects.push(action.payload);
+      })
+      .addCase(updateProjectDeadline.fulfilled, (state, action) => {
+        state.projects = state.projects.map((project) =>
+          project._id === action.payload._id ? action.payload : project
+        );
       });
 
   }
 });
 
 export default projectSlice.reducer;
-

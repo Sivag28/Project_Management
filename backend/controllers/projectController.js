@@ -30,6 +30,30 @@ export const createProject = async (req, res) => {
   res.json(project);
 };
 
+export const updateProjectDeadline = async (req, res) => {
+  const { deadline } = req.body;
+  if (typeof deadline !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+    return res.status(400).json({ message: "A valid deadline is required" });
+  }
+
+  const parsedDeadline = new Date(`${deadline}T00:00:00.000Z`);
+  if (Number.isNaN(parsedDeadline.getTime()) || parsedDeadline.toISOString().slice(0, 10) !== deadline) {
+    return res.status(400).json({ message: "A valid deadline is required" });
+  }
+
+  const companyId = getCompanyId(req.user);
+  if (!companyId) {
+    return res.status(400).json({ message: "User company is required" });
+  }
+
+  const project = await Project.findOne({ _id: req.params.id, company: companyId });
+  if (!project) return res.status(404).json({ message: "Project not found" });
+
+  project.deadline = parsedDeadline;
+  await project.save();
+  res.json(project);
+};
+
 export const deleteProject = async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) return res.status(404).json({ message: "Project not found" });
