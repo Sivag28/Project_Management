@@ -45,6 +45,17 @@ const getProjectDeadlineInputValue = (project) => {
   return Number.isNaN(deadline.getTime()) ? "" : deadline.toISOString().slice(0, 10);
 };
 
+const getStatusProgress = (status, fallback = 0) => {
+  const progressByStatus = {
+    Backlog: 10,
+    'To Do': 30,
+    'In Progress': 60,
+    Testing: 85,
+    Completed: 100,
+  };
+  return progressByStatus[status] ?? fallback;
+};
+
 const SortableUser = ({ user, isSelected, onToggle }) => {
   const {
     attributes,
@@ -630,7 +641,8 @@ const AdminDashboard = () => {
         const projectTasks = filteredTasks.filter(task => getTaskProjectId(task) === String(project._id));
         const completed = projectTasks.filter(task => task.status === 'Completed').length;
         const total = projectTasks.length;
-        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const taskProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const progress = getStatusProgress(project.status, taskProgress);
         return { ...project, progress, completedTasks: completed, totalTasks: total };
       });
 
@@ -826,7 +838,8 @@ const AdminDashboard = () => {
     const projectTasks = (tasks || []).filter(task => getTaskProjectId(task) === String(project._id));
     const completed = projectTasks.filter(task => task.status === 'Completed').length;
     const total = projectTasks.length;
-    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const taskProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const progress = getStatusProgress(project.status, taskProgress);
     return { ...project, progress, completedTasks: completed, totalTasks: total };
   });
 
@@ -1265,8 +1278,17 @@ const AdminDashboard = () => {
                   <div key={project._id} className="rounded-[28px] border border-white/10 bg-gradient-to-br from-slate-900/90 to-slate-800/80 p-6 shadow-xl">
                     <h3 className="text-xl font-bold text-white mb-2">{project.title}</h3>
                     <p className="mb-5 text-sm leading-6 text-slate-300">{project.description}</p>
-                    <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-800">
-                      <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500" style={{ width: `${project.progress || 0}%` }}></div>
+                    <div className="mb-5">
+                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-400">
+                        <span>Progress</span>
+                        <span>{project.progress || 0}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                        <div
+                          className={`h-full rounded-full ${project.status === 'Completed' ? 'bg-green-500' : 'bg-gradient-to-r from-cyan-400 to-blue-500'}`}
+                          style={{ width: `${project.progress || 0}%` }}
+                        ></div>
+                      </div>
                     </div>
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <span className="text-sm text-slate-400">Due: {formatProjectDeadline(project)}</span>

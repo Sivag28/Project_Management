@@ -1,6 +1,14 @@
 import { Link } from "react-router-dom";
 import { FaSeedling, FaTree, FaLeaf, FaSpa, FaAppleAlt } from 'react-icons/fa';
 
+const statusProgress = {
+  Backlog: 10,
+  'To Do': 30,
+  'In Progress': 60,
+  Testing: 85,
+  Completed: 100,
+};
+
 const ProjectCard = ({ project, tasks = [] }) => {
   // Safe calculations with error handling
   let progress = 0;
@@ -17,7 +25,8 @@ const ProjectCard = ({ project, tasks = [] }) => {
     );
     completedTasks = projectTasks.filter(task => task && task.status === "Completed").length;
     totalTasks = projectTasks.length;
-    progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    progress = statusProgress[project.status] ?? taskProgress;
 
     const fallbackTaskDueDate = projectTasks
       .filter((task) => task?.dueDate)
