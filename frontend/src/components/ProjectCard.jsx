@@ -8,6 +8,7 @@ const statusProgress = {
   Testing: 85,
   Completed: 100,
 };
+const statusOrder = ['Backlog', 'To Do', 'In Progress', 'Testing', 'Completed'];
 
 const ProjectCard = ({ project, tasks = [] }) => {
   // Safe calculations with error handling
@@ -26,7 +27,10 @@ const ProjectCard = ({ project, tasks = [] }) => {
     completedTasks = projectTasks.filter(task => task && task.status === "Completed").length;
     totalTasks = projectTasks.length;
     const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-    progress = statusProgress[project.status] ?? taskProgress;
+    const furthestTaskStatus = projectTasks.reduce((furthest, task) => {
+      return statusOrder.indexOf(task.status) > statusOrder.indexOf(furthest) ? task.status : furthest;
+    }, null);
+    progress = statusProgress[project.status] ?? statusProgress[furthestTaskStatus] ?? taskProgress;
 
     const fallbackTaskDueDate = projectTasks
       .filter((task) => task?.dueDate)

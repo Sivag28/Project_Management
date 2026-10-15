@@ -56,6 +56,14 @@ const getStatusProgress = (status, fallback = 0) => {
   return progressByStatus[status] ?? fallback;
 };
 
+const getTaskStatusProgress = (projectTasks) => {
+  const statusOrder = ['Backlog', 'To Do', 'In Progress', 'Testing', 'Completed'];
+  const furthestStatus = projectTasks.reduce((furthest, task) => (
+    statusOrder.indexOf(task.status) > statusOrder.indexOf(furthest) ? task.status : furthest
+  ), null);
+  return getStatusProgress(furthestStatus, 0);
+};
+
 const SortableUser = ({ user, isSelected, onToggle }) => {
   const {
     attributes,
@@ -642,7 +650,7 @@ const AdminDashboard = () => {
         const completed = projectTasks.filter(task => task.status === 'Completed').length;
         const total = projectTasks.length;
         const taskProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
-        const progress = getStatusProgress(project.status, taskProgress);
+        const progress = getStatusProgress(project.status, getTaskStatusProgress(projectTasks) || taskProgress);
         return { ...project, progress, completedTasks: completed, totalTasks: total };
       });
 
@@ -839,7 +847,7 @@ const AdminDashboard = () => {
     const completed = projectTasks.filter(task => task.status === 'Completed').length;
     const total = projectTasks.length;
     const taskProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const progress = getStatusProgress(project.status, taskProgress);
+    const progress = getStatusProgress(project.status, getTaskStatusProgress(projectTasks) || taskProgress);
     return { ...project, progress, completedTasks: completed, totalTasks: total };
   });
 
